@@ -5937,7 +5937,37 @@ window.mpGoHomeSection = function(){
       }
     });
   }
-</script>
-</body>
-</html>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
+    // [필수 추가] 본인의 파이어베이스 설정값을 여기에 꼭 채워넣어 주세요!
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID"
+    };
+
+    // [필수 추가] 파이어베이스 앱 초기화 및 db, auth 객체 생성
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // 로그인 상태 감시 및 실시간 차단 로직
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const userRef = doc(db, "users", user.uid);
+        
+        onSnapshot(userRef, (docSnap) => {
+          if (!docSnap.exists() || docSnap.data().isAllowed === false) {
+            alert("접근 권한이 삭제되었습니다.");
+            document.body.innerHTML = "<h1>접근이 차단되었습니다.</h1>";
+          }
+        });
+      }
+    });
+  </script>
