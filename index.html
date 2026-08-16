@@ -2116,7 +2116,63 @@ main{padding-top:14px;}
     <p>관리자에 의해 이용 승인이 거절되었습니다.<br>문의사항은 관리자에게 직접 연락바랍니다.</p>
   </div>
 
+  <!-- (D) 카카오톡 인앱 브라우저 차단 화면 -->
+  <div id="kakao-blocked-screen" class="approval-card" style="display:none;">
+    <h2>🚫 카카오톡 인앱 브라우저</h2>
+    <div class="status-badge status-rejected">외부 브라우저에서 열어주세요</div>
+    <p>카카오톡 인앱 브라우저에서는 일부 기능이 정상적으로 동작하지 않아 이용이 제한됩니다.<br>
+    우측 상단 <strong>메뉴(≡ 또는 ⋮)</strong> 버튼을 눌러 <strong>"다른 브라우저로 열기"</strong>를 선택하시거나,<br>
+    아래 주소를 복사해 <strong>Safari</strong> 또는 <strong>Chrome</strong>에서 직접 접속해주세요.</p>
+
+    <div class="user-id-box" id="kakaoUrlBox">-</div>
+
+    <button class="btn-submit" id="kakaoCopyUrlBtn" style="margin-top:20px;">주소 복사하기</button>
+  </div>
+
 </div>
+
+<!-- 카카오톡 인앱 브라우저 감지 및 차단 (Firebase 로직보다 먼저 동기 실행) -->
+<script>
+  (function () {
+    try {
+      var ua = navigator.userAgent || "";
+      var isKakao = /KAKAOTALK/i.test(ua);
+      if (!isKakao) return;
+
+      // 전역 플래그: 아래 모듈 스크립트(승인 시스템 로직)가 이 값을 보고 즉시 중단함
+      window.__MP_KAKAO_BLOCKED__ = true;
+
+      ["request-form", "pending-screen", "rejected-screen"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = "none";
+      });
+      var blockedEl = document.getElementById("kakao-blocked-screen");
+      if (blockedEl) blockedEl.style.display = "block";
+
+      var overlay = document.getElementById("approval-overlay");
+      if (overlay) overlay.style.display = "flex";
+      var mainEl = document.getElementById("main-content");
+      if (mainEl) mainEl.style.display = "none";
+
+      var urlBox = document.getElementById("kakaoUrlBox");
+      if (urlBox) urlBox.textContent = location.href;
+
+      var copyBtn = document.getElementById("kakaoCopyUrlBtn");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", async function () {
+          try {
+            await navigator.clipboard.writeText(location.href);
+            var original = copyBtn.textContent;
+            copyBtn.textContent = "복사됨!";
+            setTimeout(function () { copyBtn.textContent = original; }, 1500);
+          } catch (e) {
+            alert("복사에 실패했습니다. 주소를 길게 눌러 직접 복사해주세요.");
+          }
+        });
+      }
+    } catch (e) { /* 감지 실패 시 기존 동작 유지 */ }
+  })();
+</script>
 
 <!-- ==================== [2] 기존 메인 콘텐츠 (승인 후에만 노출) ==================== -->
 <div id="main-content">
@@ -5345,6 +5401,11 @@ window.mpGoHomeSection = function(){
     appId: "1:1044994708052:web:6df7a5bdfd23bbf91153c1",
     measurementId: "G-YKMCHSFSM2"
   };
+  // 카카오톡 인앱 브라우저에서는 승인 시스템(Firebase) 로직을 아예 실행하지 않음
+  if (window.__MP_KAKAO_BLOCKED__) {
+    throw new Error("카카오톡 인앱 브라우저 - 승인 시스템 로직 중단");
+  }
+
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
