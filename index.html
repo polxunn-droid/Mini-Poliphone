@@ -69,29 +69,6 @@ table, th, td{-webkit-text-size-adjust:100%; text-size-adjust:100%;}
 }
 .scrollTopBtn:active{background:var(--navy-dark);}
 
-.backToBtn{
-  position:fixed;
-  right:16px;
-  bottom:144px;
-  width:44px;
-  height:44px;
-  border-radius:50%;
-  background:var(--navy);
-  color:#fff;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  font-size:19px;
-  font-weight:900;
-  text-decoration:none;
-  box-shadow:0 4px 12px rgba(20,40,63,.35);
-  z-index:999;
-  cursor:pointer;
-  user-select:none;
-}
-.backToBtn.show{display:flex;}
-.backToBtn:active{background:var(--navy-dark);}
-
 .fmChkProgress{
   display:flex;
   align-items:center;
@@ -1595,6 +1572,9 @@ main{
     --green-light:#123524;
     --amber:#e0b23a;
     --amber-light:#2c2510;
+    --hbg1:#1b2740; --hbg2:#132b22; --hbg3:#2e2413; --hbg4:#251f38;
+    --hbg5:#301c1a; --hbg6:#122b30; --hbg7:#20242c; --hbg8:#1b2740;
+    --card2:#1c2937;
   }
 
   /* 입력필드 · 셀렉트 */
@@ -1727,13 +1707,17 @@ main{
 .homeGreetName #userNameSpan{color:var(--accent);}
 .homeGreetSub{font-size:11.5px; color:var(--sub); margin-top:9px; padding-top:9px; border-top:1px dashed var(--line); line-height:1.6; word-break:keep-all;}
 
-.searchBox{position:relative; margin:0 2px 18px;}
-.searchInputRow{display:flex; align-items:center; gap:8px; background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:12px 15px;}
+.searchBox{position:sticky; top:0; z-index:950; margin:0 2px 18px; padding:6px 0 2px; background:var(--bg); transition:box-shadow .2s ease;}
+.searchBox.isOpen{box-shadow:0 6px 16px rgba(20,40,63,.12); }
+.searchInputRow{position:relative; z-index:1; display:flex; align-items:center; gap:8px; background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:12px 15px;}
 .searchInputRow .searchIco{font-size:14px; flex-shrink:0;}
 .searchInputBox{flex:1; min-width:0; border:none; background:transparent; outline:none; font-size:16px; font-weight:600; color:var(--text); font-family:inherit; padding:0;}
 .searchInputBox::placeholder{color:var(--sub); font-weight:600;}
 .searchClearBtn{display:none; flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--line); color:var(--sub); align-items:center; justify-content:center; font-size:11px; cursor:pointer;}
 .searchBox.hasQuery .searchClearBtn{display:flex;}
+.searchBackdrop{position:fixed; inset:0; background:rgba(15,23,32,.45); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); opacity:0; visibility:hidden; transition:opacity .2s ease, visibility .2s ease; pointer-events:none;}
+.searchBox.isOpen .searchBackdrop{opacity:1; visibility:visible; pointer-events:auto;}
+html.dark .searchBackdrop{background:rgba(0,0,0,.6);}
 .searchResults{display:none; position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:40; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 28px rgba(20,40,63,.18); max-height:60vh; overflow-y:auto; padding:6px;}
 .searchBox.isOpen .searchResults{display:block;}
 .searchResultItem{display:block; width:100%; text-align:left; background:none; border:none; padding:10px 10px; border-radius:10px; cursor:pointer; font-family:inherit;}
@@ -2218,6 +2202,7 @@ main{padding-top:14px;}
       </div>
     </div>
     <div class="searchBox" id="searchBox">
+      <div class="searchBackdrop" id="searchBackdrop"></div>
       <div class="searchInputRow">
         <span class="searchIco">🔍</span>
         <input type="text" id="searchInput" class="searchInputBox" placeholder="서식·죄종·키워드 검색" autocomplete="off">
@@ -4391,7 +4376,6 @@ main{padding-top:14px;}
   </div>
 </div>
 
-<div class="backToBtn" role="button" tabindex="0" aria-label="뒤로가기">←</div>
 <div class="scrollTopBtn" role="button" tabindex="0" aria-label="맨 위로">↑</div>
 
 </div>
@@ -4400,6 +4384,43 @@ main{padding-top:14px;}
 <script>
 (function(){
   try {
+    // ---- 하단 탭(홈·매뉴얼함·도구·설정) 새로고침 시 유지 ----
+    // apptab 라디오는 기본적으로 apptab-home 만 checked 속성이 있어,
+    // 새로고침하면 도구/설정 등에 있어도 항상 홈 탭으로 돌아가는 문제가 있었음.
+    // 마지막으로 선택한 탭을 저장해두고, 페이지 로드 시 복원한다.
+    (function restoreAppTab(){
+      var tabIds = ['apptab-home', 'apptab-form', 'apptab-calc', 'apptab-settings'];
+      var savedTab = localStorage.getItem('mp_last_apptab');
+      if (savedTab && tabIds.indexOf(savedTab) !== -1) {
+        var savedTabEl = document.getElementById(savedTab);
+        if (savedTabEl) savedTabEl.checked = true;
+      }
+      tabIds.forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('change', function(){
+            if (el.checked) localStorage.setItem('mp_last_apptab', id);
+          });
+        }
+      });
+    })();
+
+    // ---- 현재 보고 있던 개별 메뉴 페이지(범죄사실 작성례 등) 새로고침 시 유지 ----
+    // nav 라디오도 apptab과 동일한 문제: nav-main 에만 checked 속성이 있어
+    // 특정 메뉴 페이지에 들어가 있어도 새로고침하면 항상 홈으로 돌아갔었음.
+    (function restoreLastNav(){
+      var savedNav = localStorage.getItem('mp_last_nav');
+      if (savedNav) {
+        var savedNavEl = document.getElementById(savedNav);
+        if (savedNavEl) savedNavEl.checked = true;
+      }
+      document.querySelectorAll('input.navctl[name="nav"]').forEach(function(r){
+        r.addEventListener('change', function(){
+          if (r.checked) localStorage.setItem('mp_last_nav', r.id);
+        });
+      });
+    })();
+
     // ---- 프로필 저장 (홈 인사말 + 설정 동기화) ----
     var userNameSpan = document.getElementById('userNameSpan');
     var stNameInput = document.getElementById('stNameInput');
@@ -4579,45 +4600,6 @@ main{padding-top:14px;}
       });
     }
   } catch (e) { /* JS 없는 환경에서는 버튼이 동작하지 않음 (외부 링크 프롬프트 방지 우선) */ }
-
-  try {
-    // ---- 뒤로가기 플로팅 버튼: 현재 보이는 섹션 상단의 backLink 목적지를 그대로 따라감 ----
-    var backBtn = document.querySelector('.backToBtn');
-    function syncBackBtn(){
-      if (!backBtn) return;
-      var activeNav = document.querySelector('input.navctl[name="nav"]:checked');
-      if (!activeNav || activeNav.id === 'nav-main') {
-        backBtn.classList.remove('show');
-        backBtn.removeAttribute('data-target');
-        return;
-      }
-      var targetId = activeNav.id.replace(/^nav-/, '');
-      var section = document.getElementById(targetId);
-      var backLink = section ? section.querySelector('.subheader .backLink') : null;
-      if (backLink) {
-        backBtn.setAttribute('data-target', backLink.getAttribute('for'));
-        backBtn.classList.add('show');
-      } else {
-        backBtn.classList.remove('show');
-        backBtn.removeAttribute('data-target');
-      }
-    }
-    if (backBtn) {
-      backBtn.addEventListener('click', function(){
-        var targetId = backBtn.getAttribute('data-target');
-        if (!targetId) return;
-        var targetRadio = document.getElementById(targetId);
-        if (targetRadio) {
-          targetRadio.checked = true;
-          targetRadio.dispatchEvent(new Event('change'));
-        }
-      });
-      syncBackBtn();
-      document.querySelectorAll('input.navctl[name="nav"]').forEach(function(r){
-        r.addEventListener('change', syncBackBtn);
-      });
-    }
-  } catch (e) { /* 뒤로가기 버튼 오류 시 상단 backLink로 이동 가능하므로 기능엔 지장 없음 */ }
 
   try {
     var navRadios = document.querySelectorAll('input.navctl[name="nav"]');
@@ -5172,6 +5154,7 @@ main{padding-top:14px;}
     var searchInput = document.getElementById('searchInput');
     var searchResults = document.getElementById('searchResults');
     var searchClearBtn = document.getElementById('searchClearBtn');
+    var searchBackdrop = document.getElementById('searchBackdrop');
     if (!searchBox || !searchInput || !searchResults) return;
 
     var searchIndex = null;
@@ -5286,10 +5269,105 @@ main{padding-top:14px;}
       });
     }
 
+    if (searchBackdrop) {
+      // 배경 암전 레이어 클릭 시 검색 닫기 (searchBox의 자식이라 아래 document 클릭감지는 무시되므로 별도 처리)
+      searchBackdrop.addEventListener('click', function(){
+        closeResults();
+        searchInput.blur();
+      });
+    }
+
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && searchBox.classList.contains('isOpen')) {
+        closeResults();
+        searchInput.blur();
+      }
+    });
+
     document.addEventListener('click', function(e){
       if (!searchBox.contains(e.target)) closeResults();
     });
   } catch (e) { /* 검색 기능 사용 불가 환경: 기존 메뉴 내비게이션은 정상 동작 */ }
+})();
+</script>
+
+<script>
+(function(){
+  try {
+    // ---- 스와이프(Swipe) 탭 전환 ----
+    // 화면 아무 곳에서나 좌우로 쓸어 넘기면 하단 탭(홈·매뉴얼함·도구·설정) 사이를 이동한다.
+    // 어떤 개별 메뉴 페이지에 들어가 있어도 동작하며, 스와이프 시 자동으로 홈 섹션으로 돌아가
+    // 해당 탭이 표시된다 (기존 플로팅 뒤로가기 버튼을 대체).
+    var TAB_ORDER = ['apptab-home', 'apptab-form', 'apptab-calc', 'apptab-settings'];
+    var MIN_DISTANCE = 60;     // 탭 전환으로 인정할 최소 이동 거리(px)
+    var MAX_VERTICAL = 60;     // 세로로 이만큼 넘게 움직이면 스크롤로 판단해 무시
+    var DIAGONAL_RATIO = 1.3;  // 가로 이동이 세로 이동의 이만큼 이상일 때만 스와이프로 인정
+
+    var startX = null, startY = null, blocked = false;
+
+    function isInsideHorizontalScroller(el){
+      // 표(가로 스크롤 표) 위에서의 스와이프는 표 자체 스크롤이 우선이므로 탭 전환을 막는다
+      while (el && el !== document.body) {
+        if (el.scrollWidth > el.clientWidth + 2) {
+          var cs = window.getComputedStyle(el);
+          if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
+    }
+
+    function swipeReady(){
+      var mainContent = document.getElementById('main-content');
+      if (!mainContent || mainContent.style.display !== 'block') return false; // 승인 전에는 비활성
+      if (document.querySelector('.modalOverlay.show')) return false; // 초기화 확인 모달 등이 떠있으면 비활성
+      var searchBoxEl = document.getElementById('searchBox');
+      if (searchBoxEl && searchBoxEl.classList.contains('isOpen')) return false; // 검색 결과가 열려있으면 비활성
+      return true;
+    }
+
+    function currentTabIndex(){
+      for (var i = 0; i < TAB_ORDER.length; i++) {
+        var el = document.getElementById(TAB_ORDER[i]);
+        if (el && el.checked) return i;
+      }
+      return 0;
+    }
+
+    function goToTab(index){
+      if (index < 0 || index >= TAB_ORDER.length) return; // 양 끝에서는 무시(순환하지 않음)
+      var navMain = document.getElementById('nav-main');
+      var targetTab = document.getElementById(TAB_ORDER[index]);
+      if (navMain && !navMain.checked) {
+        navMain.checked = true;
+        navMain.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (targetTab) {
+        targetTab.checked = true;
+        targetTab.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
+    document.addEventListener('touchstart', function(e){
+      if (e.touches.length !== 1 || !swipeReady()) { startX = null; return; }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      blocked = isInsideHorizontalScroller(e.target);
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e){
+      if (startX === null || blocked) { startX = null; return; }
+      var t = e.changedTouches[0];
+      var dx = t.clientX - startX;
+      var dy = t.clientY - startY;
+      startX = null;
+      if (Math.abs(dx) < MIN_DISTANCE) return;
+      if (Math.abs(dy) > MAX_VERTICAL) return;
+      if (Math.abs(dx) < Math.abs(dy) * DIAGONAL_RATIO) return;
+      var idx = currentTabIndex();
+      goToTab(dx < 0 ? idx + 1 : idx - 1); // 왼쪽으로 쓸면 다음 탭, 오른쪽으로 쓸면 이전 탭
+    }, { passive: true });
+  } catch (e) { /* 스와이프 실패해도 하단 탭 클릭으로 기존처럼 이용 가능 */ }
 })();
 </script>
 
