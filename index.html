@@ -1795,6 +1795,25 @@ html.dark .searchBackdrop{background:rgba(0,0,0,.6);}
 .stDanger{color:#c0392b; cursor:pointer;}
 .stDanger .stRowTitle{color:#c0392b;}
 
+/* ---- 관리자 승인 관리 카드 ---- */
+.adminReqEmpty{font-size:11.5px; color:var(--sub); padding:14px 4px; text-align:center;}
+.adminReqItem{display:flex; align-items:center; gap:10px; padding:11px 4px;}
+.adminReqItem + .adminReqItem{border-top:1px solid var(--line);}
+.adminReqInfo{flex:1; min-width:0;}
+.adminReqName{font-size:12.5px; font-weight:800; color:var(--text);}
+.adminReqMeta{font-size:10.5px; color:var(--sub); margin-top:2px; word-break:break-all;}
+.adminReqStatus{display:inline-block; margin-top:5px; font-size:10px; font-weight:800; padding:2px 8px; border-radius:20px;}
+.adminReqStatus--pending{background:#fef3c7; color:#d97706;}
+.adminReqStatus--approved{background:#dcfce7; color:#16a34a;}
+.adminReqStatus--rejected{background:#fee2e2; color:#dc2626;}
+.adminReqActions{flex-shrink:0; display:flex; gap:6px;}
+.adminReqBtn{font-size:11px; font-weight:800; border:none; border-radius:8px; padding:7px 11px; cursor:pointer; font-family:inherit;}
+.adminApproveBtn{background:#16a34a; color:#fff;}
+.adminApproveBtn:active{background:#15803d;}
+.adminRejectBtn{background:#dc2626; color:#fff;}
+.adminRejectBtn:active{background:#b91c1c;}
+.adminReqBtn:disabled{opacity:.45; pointer-events:none;}
+
 .stSwitch{position:relative; width:42px; height:24px; flex-shrink:0;}
 .stSwitch input{position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer;}
 .stSwitchTrack{position:absolute; inset:0; background:#d6dae0; border-radius:20px; transition:background .15s ease; pointer-events:none;}
@@ -2122,7 +2141,7 @@ main{padding-top:14px;}
     <div class="status-badge status-rejected">외부 브라우저에서 열어주세요</div>
     <p>카카오톡 인앱 브라우저에서는 일부 기능이 정상적으로 동작하지 않아 이용이 제한됩니다.<br>
     우측 상단 <strong>메뉴(≡ 또는 ⋮)</strong> 버튼을 눌러 <strong>"다른 브라우저로 열기"</strong>를 선택하시거나,<br>
-    아래 주소를 복사해 <strong>Safari</strong> 또는 <strong>Chrome</strong>에서 직접 접속해주세요.</p>
+    아래 주소를 복사해 <strong>Safari</strong> 또는 <strong>인터넷 브라우저</strong>에서 직접 접속해주세요.</p>
 
     <div class="user-id-box" id="kakaoUrlBox">-</div>
 
@@ -2136,7 +2155,21 @@ main{padding-top:14px;}
   (function () {
     try {
       var ua = navigator.userAgent || "";
-      var isKakao = /KAKAOTALK/i.test(ua);
+
+      // 1) 표준 감지: UA에 "KAKAOTALK" 포함 (안드로이드 및 일부 iOS 케이스)
+      var isKakaoUA = /KAKAOTALK/i.test(ua);
+
+      // 2) iOS 보정 감지: 카카오톡에서 채팅 중 공유된 링크를 눌러 인앱 브라우저가 열린 경우,
+      //    iOS에서는 UA에 "KAKAOTALK" 문구가 아예 빠지는 경우가 있음(카카오 공식 이슈).
+      //    이 경우 iOS의 정상 Safari/Chrome이라면 항상 존재하는 "Safari/" 토큰이
+      //    카카오톡 등 iOS 인앱 웹뷰(WKWebView)에는 보통 없다는 점으로 보정 감지.
+      //    (단, 홈 화면에 추가한 웹앱(standalone)은 정상 이용자이므로 제외)
+      var isIOS = /iPhone|iPad|iPod/i.test(ua);
+      var hasSafariToken = /Safari\//.test(ua);
+      var isStandalone = !!(window.navigator && window.navigator.standalone);
+      var isIOSInAppFallback = isIOS && !hasSafariToken && !isStandalone;
+
+      var isKakao = isKakaoUA || isIOSInAppFallback;
       if (!isKakao) return;
 
       // 전역 플래그: 아래 모듈 스크립트(승인 시스템 로직)가 이 값을 보고 즉시 중단함
@@ -2382,6 +2415,11 @@ main{padding-top:14px;}
       </div>
       <div class="stRow"><span class="stRowIcon">ℹ️</span><span class="stRowText"><span class="stRowTitle">버전정보</span></span><span class="stRowRight">v2.0</span></div>
       <div class="stRow stDanger" id="stResetBtn"><span class="stRowIcon">🗑️</span><span class="stRowText"><span class="stRowTitle">저장된 데이터 초기화</span><span class="stRowSub">프로필·다크모드 설정·체크리스트 저장기록이 모두 삭제됩니다</span></span></div>
+    </div>
+    <div class="stCard" id="adminCard" style="display:none;">
+      <div class="stLabel">🔑 관리자 - 이용 승인 관리</div>
+      <div class="stRowSub" style="padding:0 4px 10px;">전체 이용 신청 목록입니다. 여기서 바로 승인·거절할 수 있습니다.</div>
+      <div id="adminRequestList"><div class="adminReqEmpty">불러오는 중...</div></div>
     </div>
   </div><!-- /panelSettings -->
 
@@ -5388,7 +5426,8 @@ window.mpGoHomeSection = function(){
   // Firestore 기능 import (승인 시스템용)
   import {
     getFirestore,
-    doc, setDoc, getDoc, onSnapshot
+    doc, setDoc, getDoc, onSnapshot,
+    collection, updateDoc
   } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
   // Your web app's Firebase configuration
@@ -5588,6 +5627,100 @@ window.mpGoHomeSection = function(){
 
   // 실행 시작
   listenStatus();
+
+  // ==================== 관리자 승인 관리 ====================
+  // 관리자로 지정할 사용자의 "내 식별 ID"(설정 > 내 프로필 하단에 표시됨)를
+  // 아래 배열에 추가하면, 해당 기기/브라우저에서만 관리자 메뉴가 노출됩니다.
+  const ADMIN_USER_IDS = [
+    "user_ov636j_1786853779490",
+    "user_1kthoa_1786851941052",
+  ];
+
+  function escapeHtml(str) {
+    return String(str == null ? "" : str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function adminStatusLabel(status) {
+    if (status === "approved") return "승인됨";
+    if (status === "rejected") return "거절됨";
+    return "대기중";
+  }
+
+  function initAdminPanel() {
+    if (!ADMIN_USER_IDS.includes(currentUserId)) return;
+
+    const adminCard = document.getElementById("adminCard");
+    const listEl = document.getElementById("adminRequestList");
+    if (adminCard) adminCard.style.display = "block";
+    if (!listEl) return;
+
+    onSnapshot(collection(db, "access_requests"), (snap) => {
+      if (snap.empty) {
+        listEl.innerHTML = '<div class="adminReqEmpty">아직 이용 신청이 없습니다.</div>';
+        return;
+      }
+
+      const docsArr = [];
+      snap.forEach((d) => docsArr.push({ id: d.id, data: d.data() }));
+
+      // 대기중 요청을 맨 위로, 그 다음 최근 요청순으로 정렬
+      const statusOrder = { pending: 0, approved: 1, rejected: 2 };
+      docsArr.sort((a, b) => {
+        const sa = statusOrder[a.data.status] !== undefined ? statusOrder[a.data.status] : 3;
+        const sb = statusOrder[b.data.status] !== undefined ? statusOrder[b.data.status] : 3;
+        if (sa !== sb) return sa - sb;
+        const ta = a.data.requestedAt && a.data.requestedAt.toMillis ? a.data.requestedAt.toMillis() : 0;
+        const tb = b.data.requestedAt && b.data.requestedAt.toMillis ? b.data.requestedAt.toMillis() : 0;
+        return tb - ta;
+      });
+
+      listEl.innerHTML = docsArr.map((item) => {
+        const d = item.data;
+        const status = d.status || "pending";
+        return (
+          '<div class="adminReqItem" data-uid="' + escapeHtml(item.id) + '">' +
+            '<div class="adminReqInfo">' +
+              '<div class="adminReqName">' + escapeHtml(d.name || "이름없음") + ' · ' + escapeHtml(d.department || "-") + '</div>' +
+              '<div class="adminReqMeta">' + escapeHtml(item.id) + '</div>' +
+              '<span class="adminReqStatus adminReqStatus--' + status + '">' + adminStatusLabel(status) + '</span>' +
+            '</div>' +
+            '<div class="adminReqActions">' +
+              '<button type="button" class="adminReqBtn adminApproveBtn" data-action="approve"' + (status === "approved" ? " disabled" : "") + '>승인</button>' +
+              '<button type="button" class="adminReqBtn adminRejectBtn" data-action="reject"' + (status === "rejected" ? " disabled" : "") + '>거절</button>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join("");
+    }, (error) => {
+      console.error("관리자 목록 수신 에러:", error);
+      listEl.innerHTML = '<div class="adminReqEmpty">목록을 불러오지 못했습니다. Firestore 권한을 확인하세요.</div>';
+    });
+
+    listEl.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".adminReqBtn");
+      if (!btn) return;
+      const item = btn.closest(".adminReqItem");
+      const uid = item && item.getAttribute("data-uid");
+      if (!uid) return;
+      const action = btn.getAttribute("data-action");
+      const newStatus = action === "approve" ? "approved" : "rejected";
+
+      const allBtns = item.querySelectorAll(".adminReqBtn");
+      allBtns.forEach((b) => b.setAttribute("disabled", "disabled"));
+
+      try {
+        await updateDoc(doc(db, "access_requests", uid), { status: newStatus });
+      } catch (err) {
+        console.error("승인 상태 변경 실패:", err);
+        alert("처리 중 오류가 발생했습니다. Firestore 규칙을 확인하세요.");
+        allBtns.forEach((b) => b.removeAttribute("disabled"));
+      }
+    });
+  }
+
+  initAdminPanel();
 </script>
 </body>
 </html>
