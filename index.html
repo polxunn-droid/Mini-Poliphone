@@ -2198,7 +2198,7 @@ main{padding-top:14px;}
       </div>
       <div class="homeMilestone" id="homeMilestone">
         <div class="homeMilestoneHead">
-          <span class="homeMilestoneTitle">주요 일정</span>
+          <span class="homeMilestoneTitle">320기 주요일정</span>
           <span class="homeMilestonePct" id="homeMilestonePct">-</span>
         </div>
         <div class="homeMilestoneTrack">
@@ -4347,8 +4347,7 @@ main{padding-top:14px;}
 
 
 <div class="confidentialBanner confidentialBannerBottom">대외 유출을 금지합니다</div>
-<div class="disclaimerNote">미니 폴리폰은 320기 4학급을 위해 중앙경찰학교 교재·자료로 만든 지역경찰 실무 참고자료입니다.</div>
-<div class="disclaimerNote">미니 폴리폰에 기재된 메뉴얼은 청별, 경찰서별 메뉴얼 차이가 있을 수 있습니다. 항상 최신 현행법령을 확인하시길 바랍니다.</div>
+<div class="disclaimerNote">미니 폴리폰은 320기 4학급을 위해 중앙경찰학교 교재, 자료를 활용하여 지역경찰 실무 참고자료입니다. 메뉴얼은 청별, 관서별로 차이가 있을 수 있으니 항상 국가법령 정보센터에서 최신 현행법령을 확인하시길 바랍니다.</div>
 
 <nav class="tabBar2">
   <label for="apptab-home" class="tabItem2 tHome" onclick="document.getElementById('nav-main').checked=true;"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10.5L12 4l8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 9.5V19a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1V9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>홈</label>
@@ -5351,6 +5350,21 @@ main{padding-top:14px;}
     if (screenType === "main") {
       document.getElementById("approval-overlay").style.display = "none";
       document.getElementById("main-content").style.display = "block";
+      // iOS 사파리 확대 상태 초기화: 승인 폼 입력 중 발생한 확대가
+      // 자동 화면전환 후에도 남아있는 문제를 보정 (포커스 해제 + 뷰포트 스케일 강제 리셋)
+      try {
+        if (document.activeElement && typeof document.activeElement.blur === "function") {
+          document.activeElement.blur();
+        }
+        var viewportMeta = document.querySelector('meta[name="viewport"]');
+        if (viewportMeta) {
+          var originalContent = viewportMeta.getAttribute("content");
+          viewportMeta.setAttribute("content", originalContent + ", maximum-scale=1.0");
+          setTimeout(function () {
+            viewportMeta.setAttribute("content", originalContent);
+          }, 350);
+        }
+      } catch (e) { /* 뷰포트 리셋 실패 시 무시 - 나머지 기능은 정상 동작 */ }
     } else {
       document.getElementById("approval-overlay").style.display = "flex";
       document.getElementById("main-content").style.display = "none";
