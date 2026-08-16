@@ -5423,6 +5423,10 @@ window.mpGoHomeSection = function(){
   // Import the functions you need from the SDKs you need
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-analytics.js";
+  // Firebase 인증(익명 로그인) - 서버가 검증 가능한 진짜 사용자 UID 발급용
+  import {
+    getAuth, signInAnonymously, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
   // Firestore 기능 import (승인 시스템용)
   import {
     getFirestore,
@@ -5449,29 +5453,23 @@ window.mpGoHomeSection = function(){
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
   const db = getFirestore(app);
+  const auth = getAuth(app);
 
   // ==================== 승인 시스템 로직 ====================
 
-  // 1. 사용자의 고유 ID 구하기 (브라우저 localStorage 저장)
-  function getUserId() {
-    let userId = localStorage.getItem("app_user_id");
-    if (!userId) {
-      userId = "user_" + Math.random().toString(36).substring(2, 8) + "_" + Date.now();
-      localStorage.setItem("app_user_id", userId);
-    }
-    return userId;
-  }
+  // 1. 사용자 식별 - Firebase 익명 로그인으로 서버가 검증 가능한 UID 사용
+  //    (기존 localStorage 랜덤 문자열은 개발자도구로 위조 가능해 보안 규칙이
+  //     "누가 요청했는지"를 확인할 수 없었음. 익명 로그인 UID는 위조 불가)
+  let currentUserId = null;
+  let userDocRef = null;
 
-  const currentUserId = getUserId();
   const displayIdEl = document.getElementById("display-user-id");
-  if (displayIdEl) displayIdEl.innerText = currentUserId;
-
-  // 설정 > 내 프로필에도 동일한 식별 ID 표시 (승인 대기 화면과 같은 값)
   const stDisplayIdEl = document.getElementById("stDisplayUserId");
-  if (stDisplayIdEl) stDisplayIdEl.innerText = currentUserId;
   const stCopyBtn = document.getElementById("stCopyUserIdBtn");
+
   if (stCopyBtn) {
     stCopyBtn.addEventListener("click", async () => {
+      if (!currentUserId) return;
       try {
         await navigator.clipboard.writeText(currentUserId);
         var original = stCopyBtn.textContent;
@@ -5521,8 +5519,6 @@ window.mpGoHomeSection = function(){
     }
   }
 
-  const userDocRef = doc(db, "access_requests", currentUserId);
-
   // 2-1. 새로고침 직후 Firestore 응답을 기다리는 동안, 지난번에 확인된 상태를 즉시 반영
   //      (승인완료 상태였다면 승인신청/대기 화면이 잠깐 보였다가 넘어가는 깜빡임을 방지)
   try {
@@ -5539,6 +5535,7 @@ window.mpGoHomeSection = function(){
 
   // 3. Firestore에서 승인 상태 실시간 감지
   function listenStatus() {
+    if (!userDocRef) return;
     onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -5588,6 +5585,10 @@ window.mpGoHomeSection = function(){
   userDeptInput.addEventListener("input", () => userDeptGroup.classList.remove("has-error"));
 
   document.getElementById("submitRequestBtn").addEventListener("click", async () => {
+    if (!userDocRef) {
+      alert("초기화 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
     const name = userNameInput.value.trim();
     const dept = userDeptInput.value.trim();
 
@@ -5617,6 +5618,10 @@ window.mpGoHomeSection = function(){
 
   // 5. 수동 상태 재확인 버튼 이벤트
   document.getElementById("checkStatusBtn").addEventListener("click", async () => {
+    if (!userDocRef) {
+      alert("초기화 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
     const docSnap = await getDoc(userDocRef);
     if (docSnap.exists() && docSnap.data().status === "approved") {
       showScreen("main");
@@ -5626,14 +5631,41 @@ window.mpGoHomeSection = function(){
   });
 
   // 실행 시작
-  listenStatus();
+  // 익명 로그인이 완료되어 진짜(위조 불가) UID를 받은 뒤에만
+  // 화면 표시 / Firestore 리스너 / 관리자 패널을 초기화합니다.
+  function startAuthedApp(uid) {
+    currentUserId = uid;
+    userDocRef = doc(db, "access_requests", currentUserId);
+
+    if (displayIdEl) displayIdEl.innerText = currentUserId;
+    if (stDisplayIdEl) stDisplayIdEl.innerText = currentUserId;
+
+    listenStatus();
+    initAdminPanel();
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      startAuthedApp(user.uid);
+    }
+  });
+
+  signInAnonymously(auth).catch((err) => {
+    console.error("익명 로그인 실패:", err);
+    alert("이용 승인 시스템 초기화에 실패했습니다. 네트워크 상태를 확인한 뒤 새로고침 해주세요.");
+  });
 
   // ==================== 관리자 승인 관리 ====================
   // 관리자로 지정할 사용자의 "내 식별 ID"(설정 > 내 프로필 하단에 표시됨)를
   // 아래 배열에 추가하면, 해당 기기/브라우저에서만 관리자 메뉴가 노출됩니다.
+  //
+  // ⚠️ 익명 로그인 도입으로 식별 ID 체계가 바뀌었습니다.
+  //    아래 두 값은 예전 localStorage 방식 ID라 더 이상 유효하지 않습니다.
+  //    각자 새로고침 후 설정 > 내 프로필에서 새로 발급된 ID를 확인해
+  //    다시 등록해주세요.
   const ADMIN_USER_IDS = [
-    "user_ov636j_1786853779490",
-    "user_1kthoa_1786851941052",
+    "user_ov636j_1786853779490", // TODO: 새 UID로 교체 필요 (구 방식 ID)
+    "user_1kthoa_1786851941052", // TODO: 새 UID로 교체 필요 (구 방식 ID)
   ];
 
   function escapeHtml(str) {
@@ -5719,8 +5751,6 @@ window.mpGoHomeSection = function(){
       }
     });
   }
-
-  initAdminPanel();
 </script>
 </body>
 </html>
