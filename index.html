@@ -1818,6 +1818,13 @@ html.dark .searchBackdrop{background:rgba(0,0,0,.6);}
 .adminDeleteBtn:active{background:var(--line);}
 .adminReqBtn:disabled{opacity:.45; pointer-events:none;}
 
+.adminGroup + .adminGroup{border-top:1px solid var(--line); margin-top:4px; padding-top:4px;}
+.adminGroupHeader{display:flex; align-items:center; gap:8px; width:100%; background:none; border:none; padding:10px 4px; margin:0; cursor:pointer; font-family:inherit; text-align:left;}
+.adminGroupArrow{font-size:10px; color:var(--sub); width:12px; flex-shrink:0;}
+.adminGroupTitle{font-size:12px; font-weight:800; color:var(--text); flex:1;}
+.adminGroupCount{font-size:10.5px; font-weight:700; color:var(--sub); background:var(--card2); border-radius:20px; padding:1px 9px;}
+.adminGroupBody{padding-left:2px;}
+
 .stSwitch{position:relative; width:42px; height:24px; flex-shrink:0;}
 .stSwitch input{position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer;}
 .stSwitchTrack{position:absolute; inset:0; background:#d6dae0; border-radius:20px; transition:background .15s ease; pointer-events:none;}
@@ -2421,8 +2428,9 @@ main{padding-top:14px;}
       <div class="stRow stDanger" id="stResetBtn"><span class="stRowIcon">🗑️</span><span class="stRowText"><span class="stRowTitle">저장된 데이터 초기화</span><span class="stRowSub">프로필·다크모드 설정·체크리스트 저장기록이 모두 삭제됩니다</span></span></div>
     </div>
     <div class="stCard" id="adminCard" style="display:none;">
-      <div class="stLabel">🔑 관리자 - 이용 승인 관리</div>
+      <div class="stLabel" id="adminCardLabel">🔑 관리자 - 이용 승인 관리</div>
       <div class="stRowSub" style="padding:0 4px 10px;">전체 이용 신청 목록입니다. 여기서 바로 승인·거절할 수 있습니다.</div>
+      <input type="text" id="adminSearchInput" class="stInput" placeholder="이름 또는 소속으로 검색" style="margin-bottom:12px;">
       <div id="adminRequestList"><div class="adminReqEmpty">불러오는 중...</div></div>
     </div>
   </div><!-- /panelSettings -->
@@ -5680,58 +5688,149 @@ window.mpGoHomeSection = function(){
     return "대기중";
   }
 
+  function adminRelativeTime(dateObj) {
+    if (!dateObj) return "";
+    const diffMs = Date.now() - dateObj.getTime();
+    if (diffMs < 0) return "방금 전";
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return "방금 전";
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + "분 전";
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return diffHour + "시간 전";
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 30) return diffDay + "일 전";
+    const diffMonth = Math.floor(diffDay / 30);
+    if (diffMonth < 12) return diffMonth + "개월 전";
+    const diffYear = Math.floor(diffMonth / 12);
+    return diffYear + "년 전";
+  }
+
   function initAdminPanel() {
     if (!ADMIN_USER_IDS.includes(currentUserId)) return;
 
     const adminCard = document.getElementById("adminCard");
+    const cardLabelEl = document.getElementById("adminCardLabel");
     const listEl = document.getElementById("adminRequestList");
+    const searchInput = document.getElementById("adminSearchInput");
     if (adminCard) adminCard.style.display = "block";
     if (!listEl) return;
 
-    onSnapshot(collection(db, "access_requests"), (snap) => {
-      if (snap.empty) {
+    let adminAllDocs = [];
+    // 그룹별 펼침 상태 - 재렌더링(실시간 갱신, 검색) 되어도 사용자가 펼친/접은 상태 유지
+    const groupOpen = { pending: true, approved: false, rejected: false };
+    const groupOrder = ["pending", "approved", "rejected"];
+    const groupMeta = {
+      pending: { label: "대기중", emptyText: "대기 중인 신청이 없습니다." },
+      approved: { label: "승인됨", emptyText: "승인된 사용자가 없습니다." },
+      rejected: { label: "거절됨", emptyText: "거절된 신청이 없습니다." }
+    };
+
+    function renderItem(item) {
+      const d = item.data;
+      const status = d.status || "pending";
+      const timeLabel = (d.requestedAt && d.requestedAt.toDate) ? adminRelativeTime(d.requestedAt.toDate()) : "";
+      return (
+        '<div class="adminReqItem" data-uid="' + escapeHtml(item.id) + '">' +
+          '<div class="adminReqInfo">' +
+            '<div class="adminReqName">' + escapeHtml(d.name || "이름없음") + ' · ' + escapeHtml(d.department || "-") + '</div>' +
+            '<div class="adminReqMeta">' + escapeHtml(item.id) + (timeLabel ? ' · ' + timeLabel : '') + '</div>' +
+            '<span class="adminReqStatus adminReqStatus--' + status + '">' + adminStatusLabel(status) + '</span>' +
+          '</div>' +
+          '<div class="adminReqActions">' +
+            '<button type="button" class="adminReqBtn adminApproveBtn" data-action="approve"' + (status === "approved" ? " disabled" : "") + '>승인</button>' +
+            '<button type="button" class="adminReqBtn adminRejectBtn" data-action="reject"' + (status === "rejected" ? " disabled" : "") + '>거절</button>' +
+            '<button type="button" class="adminReqBtn adminDeleteBtn" data-action="delete">삭제</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function renderList() {
+      if (adminAllDocs.length === 0) {
         listEl.innerHTML = '<div class="adminReqEmpty">아직 이용 신청이 없습니다.</div>';
+        if (cardLabelEl) cardLabelEl.textContent = "🔑 관리자 - 이용 승인 관리";
         return;
       }
 
-      const docsArr = [];
-      snap.forEach((d) => docsArr.push({ id: d.id, data: d.data() }));
+      const pendingCount = adminAllDocs.filter((i) => (i.data.status || "pending") === "pending").length;
+      if (cardLabelEl) {
+        cardLabelEl.textContent = "🔑 관리자 - 이용 승인 관리" + (pendingCount > 0 ? " (대기 " + pendingCount + ")" : "");
+      }
 
-      // 대기중 요청을 맨 위로, 그 다음 최근 요청순으로 정렬
-      const statusOrder = { pending: 0, approved: 1, rejected: 2 };
-      docsArr.sort((a, b) => {
-        const sa = statusOrder[a.data.status] !== undefined ? statusOrder[a.data.status] : 3;
-        const sb = statusOrder[b.data.status] !== undefined ? statusOrder[b.data.status] : 3;
-        if (sa !== sb) return sa - sb;
-        const ta = a.data.requestedAt && a.data.requestedAt.toMillis ? a.data.requestedAt.toMillis() : 0;
-        const tb = b.data.requestedAt && b.data.requestedAt.toMillis ? b.data.requestedAt.toMillis() : 0;
-        return tb - ta;
+      const keyword = ((searchInput && searchInput.value) || "").trim().toLowerCase();
+      const filtered = keyword
+        ? adminAllDocs.filter((item) => {
+            const name = (item.data.name || "").toLowerCase();
+            const dept = (item.data.department || "").toLowerCase();
+            return name.indexOf(keyword) !== -1 || dept.indexOf(keyword) !== -1;
+          })
+        : adminAllDocs;
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="adminReqEmpty">검색 결과가 없습니다.</div>';
+        return;
+      }
+
+      const groups = { pending: [], approved: [], rejected: [] };
+      filtered.forEach((item) => {
+        const status = item.data.status || "pending";
+        (groups[status] || groups.pending).push(item);
       });
 
-      listEl.innerHTML = docsArr.map((item) => {
-        const d = item.data;
-        const status = d.status || "pending";
+      groupOrder.forEach((key) => {
+        groups[key].sort((a, b) => {
+          const ta = a.data.requestedAt && a.data.requestedAt.toMillis ? a.data.requestedAt.toMillis() : 0;
+          const tb = b.data.requestedAt && b.data.requestedAt.toMillis ? b.data.requestedAt.toMillis() : 0;
+          return tb - ta;
+        });
+      });
+
+      listEl.innerHTML = groupOrder.map((key) => {
+        const items = groups[key];
+        const meta = groupMeta[key];
+        const isOpen = groupOpen[key];
+        const body = items.length
+          ? items.map(renderItem).join("")
+          : '<div class="adminReqEmpty">' + meta.emptyText + '</div>';
+
         return (
-          '<div class="adminReqItem" data-uid="' + escapeHtml(item.id) + '">' +
-            '<div class="adminReqInfo">' +
-              '<div class="adminReqName">' + escapeHtml(d.name || "이름없음") + ' · ' + escapeHtml(d.department || "-") + '</div>' +
-              '<div class="adminReqMeta">' + escapeHtml(item.id) + '</div>' +
-              '<span class="adminReqStatus adminReqStatus--' + status + '">' + adminStatusLabel(status) + '</span>' +
-            '</div>' +
-            '<div class="adminReqActions">' +
-              '<button type="button" class="adminReqBtn adminApproveBtn" data-action="approve"' + (status === "approved" ? " disabled" : "") + '>승인</button>' +
-              '<button type="button" class="adminReqBtn adminRejectBtn" data-action="reject"' + (status === "rejected" ? " disabled" : "") + '>거절</button>' +
-              '<button type="button" class="adminReqBtn adminDeleteBtn" data-action="delete">삭제</button>' +
-            '</div>' +
+          '<div class="adminGroup" data-group="' + key + '">' +
+            '<button type="button" class="adminGroupHeader" data-toggle-group="' + key + '">' +
+              '<span class="adminGroupArrow">' + (isOpen ? "▾" : "▸") + '</span>' +
+              '<span class="adminGroupTitle">' + meta.label + '</span>' +
+              '<span class="adminGroupCount">' + items.length + '</span>' +
+            '</button>' +
+            '<div class="adminGroupBody" style="display:' + (isOpen ? "block" : "none") + ';">' + body + '</div>' +
           '</div>'
         );
       }).join("");
+    }
+
+    onSnapshot(collection(db, "access_requests"), (snap) => {
+      adminAllDocs = [];
+      snap.forEach((d) => adminAllDocs.push({ id: d.id, data: d.data() }));
+      renderList();
     }, (error) => {
       console.error("관리자 목록 수신 에러:", error);
       listEl.innerHTML = '<div class="adminReqEmpty">목록을 불러오지 못했습니다. Firestore 권한을 확인하세요.</div>';
     });
 
+    if (searchInput) {
+      searchInput.addEventListener("input", () => renderList());
+    }
+
     listEl.addEventListener("click", async (e) => {
+      const groupToggleBtn = e.target.closest("[data-toggle-group]");
+      if (groupToggleBtn) {
+        const key = groupToggleBtn.getAttribute("data-toggle-group");
+        if (Object.prototype.hasOwnProperty.call(groupOpen, key)) {
+          groupOpen[key] = !groupOpen[key];
+          renderList();
+        }
+        return;
+      }
+
       const btn = e.target.closest(".adminReqBtn");
       if (!btn) return;
       const item = btn.closest(".adminReqItem");
