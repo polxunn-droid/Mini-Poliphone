@@ -5337,6 +5337,13 @@ main{padding-top:14px;}
 
   // 2. UI 화면 전환 함수
   function showScreen(screenType) {
+    // 화면이 바뀔 때마다 마지막 상태를 캐시해 다음 새로고침 시 깜빡임 없이 즉시 복원
+    try {
+      if (screenType === "main") localStorage.setItem("mp_approval_status", "approved");
+      else if (screenType === "rejected-screen") localStorage.setItem("mp_approval_status", "rejected");
+      else if (screenType === "pending-screen") localStorage.setItem("mp_approval_status", "pending");
+      else localStorage.removeItem("mp_approval_status");
+    } catch (e) { /* localStorage 사용 불가 환경: 캐시만 비활성, 나머지 정상 동작 */ }
     document.getElementById("request-form").style.display = "none";
     document.getElementById("pending-screen").style.display = "none";
     document.getElementById("rejected-screen").style.display = "none";
@@ -5352,6 +5359,20 @@ main{padding-top:14px;}
   }
 
   const userDocRef = doc(db, "access_requests", currentUserId);
+
+  // 2-1. 새로고침 직후 Firestore 응답을 기다리는 동안, 지난번에 확인된 상태를 즉시 반영
+  //      (승인완료 상태였다면 승인신청/대기 화면이 잠깐 보였다가 넘어가는 깜빡임을 방지)
+  try {
+    var cachedApprovalStatus = localStorage.getItem("mp_approval_status");
+    if (cachedApprovalStatus === "approved") {
+      showScreen("main");
+    } else if (cachedApprovalStatus === "rejected") {
+      showScreen("rejected-screen");
+    } else if (cachedApprovalStatus === "pending") {
+      showScreen("pending-screen");
+    }
+    // 캐시가 없으면(최초 접속) 기본 상태인 승인 신청 폼이 그대로 보여짐 - 정상 동작
+  } catch (e) { /* localStorage 사용 불가 환경: 캐시 복원만 비활성, 나머지 정상 동작 */ }
 
   // 3. Firestore에서 승인 상태 실시간 감지
   function listenStatus() {
@@ -5379,7 +5400,28 @@ main{padding-top:14px;}
   const userNameGroup = userNameInput.closest(".input-group");
   const userDeptGroup = userDeptInput.closest(".input-group");
 
-  userNameInput.addEventListener("input", () => userNameGroup.classList.remove("has-error"));
+  // 승인 신청 폼의 "이름"을 홈 인사말(내 프로필) 이름과 자동 연동
+  // - 이미 저장된 프로필 이름이 있으면 신청 폼에 미리 채워줌
+  // - 신청 폼에 이름을 입력하면 실시간으로 홈 인사말 · 설정(내 프로필) 이름에도 반영
+  try {
+    var prefillName = localStorage.getItem("mp_userName");
+    if (prefillName) userNameInput.value = prefillName;
+  } catch (e) { /* localStorage 사용 불가 환경: 자동 연동만 비활성, 나머지 정상 동작 */ }
+
+  function syncNameToProfile(name) {
+    try {
+      var greetSpan = document.getElementById("userNameSpan");
+      if (greetSpan) greetSpan.textContent = name ? name : "ㅇㅇㅇ";
+      if (name) localStorage.setItem("mp_userName", name); else localStorage.removeItem("mp_userName");
+      var stNameField = document.getElementById("stNameInput");
+      if (stNameField) stNameField.value = name;
+    } catch (e) { /* localStorage 사용 불가 환경: 자동 연동만 비활성, 나머지 정상 동작 */ }
+  }
+
+  userNameInput.addEventListener("input", () => {
+    userNameGroup.classList.remove("has-error");
+    syncNameToProfile(userNameInput.value.trim());
+  });
   userDeptInput.addEventListener("input", () => userDeptGroup.classList.remove("has-error"));
 
   document.getElementById("submitRequestBtn").addEventListener("click", async () => {
