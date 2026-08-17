@@ -177,6 +177,8 @@ header.topbar .badge-sub{
 /* ---- 나이계산기 ---- */
 .ageDateInput{
   width:100%;
+  min-width:0;
+  max-width:100%;
   font-size:16px;
   padding:12px 14px;
   border:1.5px solid var(--line);
@@ -185,6 +187,8 @@ header.topbar .badge-sub{
   background:#fff;
   font-family:inherit;
   box-sizing:border-box;
+  -webkit-appearance:none;
+  appearance:none;
 }
 .ageDateInput:focus{
   outline:none;
@@ -1013,6 +1017,7 @@ main{
   padding:2px 2px 4px;
 }
 .rptTable{
+  background:#fff;
   border:1px solid #ccc;
   border-radius:6px;
   overflow:hidden;
@@ -1691,6 +1696,30 @@ main{
   }
 
   /* 스크롤 시 상단 이동 버튼 · 헤더는 원래도 짙은 남색이라 그대로 사용 */
+
+  /* ---- v2.0 홈 화면 · 검색결과 · 배지류 (기기 자동 다크모드 감지 시에도
+         html.dark 강제모드와 동일하게 보이도록 동기화) ---- */
+  .fmChkProgressLabel{color:#dbe8f7;}
+  .fmChkProgressBar{background:#141c26; border-color:#243244;}
+  .searchResultTitle{color:#dbe8f7;}
+  .searchBackdrop{background:rgba(0,0,0,.6);}
+  .tabBar2{background:rgba(15,23,32,.94);}
+  .pillRed{background:rgba(224,36,36,.28);}
+  .pillRedLight{background:#301c1a; color:#e08a80; border-color:#4a2420;}
+  .pillNeutralLight{background:var(--card); color:var(--sub); border-color:var(--line);}
+  .pillYellowLight{background:#3a2f10; color:#f2cd5c; border-color:#5c4a17;}
+  .homeGreetName, .modalTitle, .mfSectionLabel{color:#dbe8f7;}
+  .homeGreetLine{color:#8fbfe8;}
+  .homeGreetName #userNameSpan{color:#8fbfe8;}
+  .homeGreetSub{border-top-color:#243244;}
+  .homeGreetCard{background:linear-gradient(135deg, #1c2937 0%, var(--card) 62%);}
+  .homeMilestoneTitle{color:#dbe8f7;}
+  .homeMilestoneTrack{background:#141c26;}
+  .homeMilestoneDot{background:#1c2937; border-color:#8fbfe8;}
+  .homeMilestoneToday{background:#dbe8f7;}
+  .homeMilestoneToday::after{color:#dbe8f7;}
+  .homeBanner{background:linear-gradient(135deg, #1c2937 0%, var(--card) 70%);}
+  .homeBannerTitle{color:#dbe8f7;}
 }
 
 /* ============================================================
@@ -1730,7 +1759,7 @@ html.dark .searchBackdrop{background:rgba(0,0,0,.6);}
 .searchResultItem:active{background:var(--card2);}
 .searchResultTitle{font-size:13.5px; font-weight:800; color:var(--navy-dark); display:block; word-break:keep-all;}
 .searchResultSnippet{display:block; font-size:11.5px; color:var(--sub); margin-top:3px; line-height:1.5; word-break:break-all;}
-.searchResultSnippet mark{background:#fff3b0; color:var(--text); border-radius:3px; padding:0 1px;}
+.searchResultSnippet mark{background:#fff3b0; color:#3a2e05; border-radius:3px; padding:0 1px;}
 .searchResultDivider{height:1px; background:var(--line); margin:4px 2px;}
 .searchEmptyState{padding:16px 10px; font-size:12.5px; color:var(--sub); text-align:center;}
 @keyframes searchHitFlash{
@@ -2032,7 +2061,8 @@ html.dark .pillNeutralLight{background:var(--card); color:var(--sub); border-col
 html.dark .pillYellowLight{background:#3a2f10; color:#f2cd5c; border-color:#5c4a17;}
 
 
-html.dark .homeGreetName, .dark .modalTitle, html.dark .mfSectionLabel{color:#dbe8f7;}
+html.dark .homeGreetName, html.dark .modalTitle, html.dark .mfSectionLabel{color:#dbe8f7;}
+html.dark .searchResultTitle{color:#dbe8f7;}
 html.dark .homeGreetLine{color:#8fbfe8;}
 html.dark .homeGreetName #userNameSpan{color:#8fbfe8;}
 html.dark .homeGreetSub{border-top-color:#243244;}
@@ -2090,13 +2120,14 @@ main{padding-top:14px;}
 .toolIconFull img{ border-radius:14px; }
 
 /* ---- 승인 시스템 오버레이 ---- */
-#approval-overlay{position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#f1f5f9; z-index:99999; display:flex; justify-content:center; align-items:center; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;}
+#approval-overlay{position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#f1f5f9; z-index:99999; display:flex; justify-content:center; align-items:center; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color-scheme:light;}
 .approval-card{background:#ffffff; padding:36px 32px; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.08); width:90%; max-width:400px; text-align:center; box-sizing:border-box;}
 .approval-card h2{margin-top:0; color:#0f172a; font-size:22px; margin-bottom:10px;}
 .approval-card p{color:#64748b; font-size:14px; line-height:1.5; margin-bottom:24px;}
 .approval-card .input-group{margin-bottom:16px; text-align:left;}
 .approval-card .input-group label{display:block; font-size:13px; font-weight:600; color:#334155; margin-bottom:6px;}
-.approval-card .input-group input, .approval-card .input-group select{width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:16px; box-sizing:border-box; outline:none; background:#fff; -webkit-appearance:none; appearance:none;}
+.approval-card .input-group input, .approval-card .input-group select{width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:16px; box-sizing:border-box; outline:none; background:#fff; color:#0f172a; color-scheme:light; -webkit-appearance:none; appearance:none;}
+.approval-card .input-group input::placeholder{color:#94a3b8; opacity:1;}
 .approval-card .input-group input:focus, .approval-card .input-group select:focus{border-color:#2563eb;}
 .approval-card .input-row{display:flex; align-items:center; gap:10px;}
 .approval-card .input-row label{flex:0 0 84px; margin-bottom:0; text-align:left;}
