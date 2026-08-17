@@ -1697,29 +1697,9 @@ main{
 
   /* 스크롤 시 상단 이동 버튼 · 헤더는 원래도 짙은 남색이라 그대로 사용 */
 
-  /* ---- v2.0 홈 화면 · 검색결과 · 배지류 (기기 자동 다크모드 감지 시에도
-         html.dark 강제모드와 동일하게 보이도록 동기화) ---- */
+  /* ---- v2.0 홈 화면 등 배경/입력필드 계열(카스케이드 순서상 문제 없는 항목)만 여기서 처리 ---- */
   .fmChkProgressLabel{color:#dbe8f7;}
   .fmChkProgressBar{background:#141c26; border-color:#243244;}
-  .searchResultTitle{color:#dbe8f7;}
-  .searchBackdrop{background:rgba(0,0,0,.6);}
-  .tabBar2{background:rgba(15,23,32,.94);}
-  .pillRed{background:rgba(224,36,36,.28);}
-  .pillRedLight{background:#301c1a; color:#e08a80; border-color:#4a2420;}
-  .pillNeutralLight{background:var(--card); color:var(--sub); border-color:var(--line);}
-  .pillYellowLight{background:#3a2f10; color:#f2cd5c; border-color:#5c4a17;}
-  .homeGreetName, .modalTitle, .mfSectionLabel{color:#dbe8f7;}
-  .homeGreetLine{color:#8fbfe8;}
-  .homeGreetName #userNameSpan{color:#8fbfe8;}
-  .homeGreetSub{border-top-color:#243244;}
-  .homeGreetCard{background:linear-gradient(135deg, #1c2937 0%, var(--card) 62%);}
-  .homeMilestoneTitle{color:#dbe8f7;}
-  .homeMilestoneTrack{background:#141c26;}
-  .homeMilestoneDot{background:#1c2937; border-color:#8fbfe8;}
-  .homeMilestoneToday{background:#dbe8f7;}
-  .homeMilestoneToday::after{color:#dbe8f7;}
-  .homeBanner{background:linear-gradient(135deg, #1c2937 0%, var(--card) 70%);}
-  .homeBannerTitle{color:#dbe8f7;}
 }
 
 /* ============================================================
@@ -2142,6 +2122,37 @@ main{padding-top:14px;}
 .approval-card .status-rejected{background-color:#fee2e2; color:#dc2626;}
 .approval-card .user-id-box{background:#f8fafc; border:1px dashed #cbd5e1; padding:10px; border-radius:8px; font-family:monospace; font-size:12px; color:#475569; word-break:break-all; margin-top:15px;}
 #main-content{display:none;}
+
+/* ============================================================
+   v2.0 UI 요소 — 기기(시스템) 자동 다크모드 감지 시 동기화
+   ※ 반드시 위쪽의 v2.0 무조건부 규칙(.homeGreetName, .homeMilestoneTitle 등)
+     보다 "뒤"에 위치해야 함 — CSS는 우선순위가 같으면 스타일시트 상에서
+     더 나중에 나오는 규칙이 이깁니다. html.dark(수동 강제) 쪽은 이미
+     맨 아래에 있어서 정상 동작했지만, 자동감지(@media) 쪽은 예전에
+     앞쪽 블록 안에 끼워 넣는 바람에 아래의 무조건부 규칙에 덮여
+     실제로는 적용되지 않던 버그가 있었음 — 이 위치로 옮겨 수정함.
+   ============================================================ */
+@media (prefers-color-scheme: dark){
+  .searchResultTitle{color:#dbe8f7;}
+  .searchBackdrop{background:rgba(0,0,0,.6);}
+  .tabBar2{background:rgba(15,23,32,.94);}
+  .pillRed{background:rgba(224,36,36,.28);}
+  .pillRedLight{background:#301c1a; color:#e08a80; border-color:#4a2420;}
+  .pillNeutralLight{background:var(--card); color:var(--sub); border-color:var(--line);}
+  .pillYellowLight{background:#3a2f10; color:#f2cd5c; border-color:#5c4a17;}
+  .homeGreetName, .modalTitle, .mfSectionLabel{color:#dbe8f7;}
+  .homeGreetLine{color:#8fbfe8;}
+  .homeGreetName #userNameSpan{color:#8fbfe8;}
+  .homeGreetSub{border-top-color:#243244;}
+  .homeGreetCard{background:linear-gradient(135deg, #1c2937 0%, var(--card) 62%);}
+  .homeMilestoneTitle{color:#dbe8f7;}
+  .homeMilestoneTrack{background:#141c26;}
+  .homeMilestoneDot{background:#1c2937; border-color:#8fbfe8;}
+  .homeMilestoneToday{background:#dbe8f7;}
+  .homeMilestoneToday::after{color:#dbe8f7;}
+  .homeBanner{background:linear-gradient(135deg, #1c2937 0%, var(--card) 70%);}
+  .homeBannerTitle{color:#dbe8f7;}
+}
 </style>
 </head>
 <body>
