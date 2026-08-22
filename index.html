@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#1e3a5f" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1720" media="(prefers-color-scheme: dark)">
 <title>4학급 미니 폴리폰</title>
-<script type="text/javascript" nonce="a1e28966cbf04140acc1a5ae1cc" src="//local.adguard.org?ts=1787411078720&amp;type=content-script&amp;dmn=chatgpt.com&amp;url=https%3A%2F%2Fchatgpt.com%2Fbackend-api%2Festuary%2Fcontent%3Fid%3Dfile_00000000cf5081f58d38c52263ab3c47%26ts%3D496503%26p%3Dfs%26cid%3D1%26sig%3D4ed1a0786055032872114d63a1b693fe10e903fd81154fb5d7ae8c8a54094847%26v%3D0&amp;app=chrome.exe&amp;css=2&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1"></script><script type="text/javascript" nonce="a1e28966cbf04140acc1a5ae1cc" src="//local.adguard.org?ts=1787411078720&amp;name=AdGuard%20Extra&amp;name=AdGuard%20Popup%20Blocker&amp;type=user-script"></script><script type="text/javascript" nonce="e069074c6f3a4cbea5f41d8309b" src="//local.adguard.org?ts=1787408545614&amp;type=content-script&amp;dmn=chatgpt.com&amp;url=https%3A%2F%2Fchatgpt.com%2Fbackend-api%2Festuary%2Fcontent%3Fid%3Dfile_000000002f1082068eb95df652b577a0%26fn%3Dindex_home_grouped_layout.html%26cd%3Dattachment%26ts%3D496502%26p%3Dfs%26cid%3D1%26sig%3D12ecc27d6f521a80e695cbddd454bff1c6b714b77a396c356cc0b2b3f9c6cd9b%26v%3D0&amp;app=chrome.exe&amp;css=2&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1">
+<script type="text/javascript" nonce="e069074c6f3a4cbea5f41d8309b" src="//local.adguard.org?ts=1787408545614&amp;type=content-script&amp;dmn=chatgpt.com&amp;url=https%3A%2F%2Fchatgpt.com%2Fbackend-api%2Festuary%2Fcontent%3Fid%3Dfile_000000002f1082068eb95df652b577a0%26fn%3Dindex_home_grouped_layout.html%26cd%3Dattachment%26ts%3D496502%26p%3Dfs%26cid%3D1%26sig%3D12ecc27d6f521a80e695cbddd454bff1c6b714b77a396c356cc0b2b3f9c6cd9b%26v%3D0&amp;app=chrome.exe&amp;css=2&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1">
 </script>
 <script type="text/javascript" nonce="e069074c6f3a4cbea5f41d8309b" src="//local.adguard.org?ts=1787408545614&amp;name=AdGuard%20Extra&amp;name=AdGuard%20Popup%20Blocker&amp;type=user-script">
 </script>
@@ -1751,6 +1751,7 @@ html.dark .searchBackdrop{background:rgba(0,0,0,.6);}
 .searchResultItem{display:block; width:100%; text-align:left; background:none; border:none; padding:10px 10px; border-radius:10px; cursor:pointer; font-family:inherit;}
 .searchResultItem:active{background:var(--card2);}
 .searchResultTitle{font-size:13.5px; font-weight:800; color:var(--navy-dark); display:block; word-break:keep-all;}
+.searchResultPath{display:block; font-size:10px; font-weight:700; color:var(--accent); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .searchResultSnippet{display:block; font-size:11.5px; color:var(--sub); margin-top:3px; line-height:1.5; word-break:break-all;}
 .searchResultSnippet mark{background:#fff3b0; color:#3a2e05; border-radius:3px; padding:0 1px;}
 .searchResultDivider{height:1px; background:var(--line); margin:4px 2px;}
@@ -13057,17 +13058,68 @@ window.mpGoHomeSection = function(){
 
     var searchIndex = null;
 
+    function cleanSearchText(value){
+      return (value || '').replace(/\s+/g, ' ').trim();
+    }
+
     function buildSearchIndex(){
       var idx = [];
+      var anchorSeq = 0;
+      var headingSelector = '.casesTitle, .lawSecLabel, .fmSectionTitle, .fmChkHeader, .fmH4, ' +
+        '.rptSectionTitle, .docGroupTitle, .tipsTitle, .lawSecTitle';
       var sections = document.querySelectorAll('main > section.view');
+
       sections.forEach(function(sec){
         if (sec.id === 'main') return;
         var subtitleEl = sec.querySelector('.subtitle');
-        var title = subtitleEl ? subtitleEl.textContent.replace(/\s+/g,' ').trim() : sec.id;
-        var body = (sec.textContent || '').replace(/\s+/g,' ').trim();
-        idx.push({ navId: 'nav-' + sec.id, title: title, body: body });
+        var sectionTitle = cleanSearchText(subtitleEl ? subtitleEl.textContent : sec.id);
+        var sectionBody = cleanSearchText(sec.textContent);
+        idx.push({ navId:'nav-' + sec.id, targetId:'', title:sectionTitle, path:sectionTitle, body:sectionBody, level:'section' });
+
+        sec.querySelectorAll(headingSelector).forEach(function(heading){
+          var title = cleanSearchText(heading.textContent);
+          if (!title || title.length > 90) return;
+
+          var container = heading.closest('.fmChkBox, .fmSection, .lawSection, .docGroup, .caseCard, .tipsBox, .rptSection') || heading.parentElement;
+          if (!container) return;
+          if (!heading.id) heading.id = 'search-anchor-' + (++anchorSeq);
+
+          var parentTitle = '';
+          if (heading.classList.contains('fmChkHeader')) {
+            var parentSection = heading.closest('.fmSection');
+            var parentHeading = parentSection && parentSection.querySelector(':scope > .fmSectionTitle');
+            parentTitle = cleanSearchText(parentHeading && parentHeading.textContent);
+          }
+          var pathParts = [sectionTitle];
+          if (parentTitle && parentTitle !== title && parentTitle !== sectionTitle) pathParts.push(parentTitle);
+          if (title !== sectionTitle) pathParts.push(title);
+
+          idx.push({
+            navId:'nav-' + sec.id,
+            targetId:heading.id,
+            title:title,
+            path:pathParts.join(' > '),
+            body:cleanSearchText(container.textContent),
+            level:'detail'
+          });
+        });
       });
       return idx;
+    }
+
+    var SEARCH_ALIASES = {
+      '가폭':'가정폭력', '아학':'아동학대', '교폭':'교제폭력',
+      '킥스':'kics', '현행범':'현행범인', '분실물':'유실물',
+      '112종결':'112 종결'
+    };
+
+    function parseSearchTerms(query){
+      var normalized = cleanSearchText(query).toLowerCase();
+      Object.keys(SEARCH_ALIASES).forEach(function(alias){
+        var re = new RegExp('(^|\\s)' + escapeRegExp(alias) + '(?=\\s|$)', 'g');
+        normalized = normalized.replace(re, function(_, lead){ return lead + SEARCH_ALIASES[alias]; });
+      });
+      return normalized.split(/\s+/).filter(function(term, i, arr){ return term && arr.indexOf(term) === i; });
     }
 
     function escapeHtml(s){
@@ -13077,17 +13129,20 @@ window.mpGoHomeSection = function(){
       return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    function makeSnippet(body, query, matchIdx){
+    function makeSnippet(body, terms, matchIdx){
       var radius = 36;
       var start = Math.max(0, matchIdx - radius);
-      var end = Math.min(body.length, matchIdx + query.length + radius);
+      var end = Math.min(body.length, matchIdx + 24 + radius);
       var snippet = (start > 0 ? '…' : '') + body.slice(start, end) + (end < body.length ? '…' : '');
       var safe = escapeHtml(snippet);
-      var re = new RegExp(escapeRegExp(escapeHtml(query)), 'gi');
-      return safe.replace(re, function(m){ return '<mark>' + m + '</mark>'; });
+      terms.slice().sort(function(a,b){ return b.length - a.length; }).forEach(function(term){
+        var re = new RegExp(escapeRegExp(escapeHtml(term)), 'gi');
+        safe = safe.replace(re, function(m){ return '<mark>' + m + '</mark>'; });
+      });
+      return safe;
     }
 
-    function renderResults(results, query){
+    function renderResults(results, query, terms){
       if (!results.length) {
         searchResults.innerHTML = '<div class="searchEmptyState">🔎 “' + escapeHtml(query) + '” 검색 결과가 없습니다</div>';
         searchBox.classList.add('isOpen');
@@ -13096,17 +13151,17 @@ window.mpGoHomeSection = function(){
       var html = '';
       results.forEach(function(r, i){
         var snippetHtml = '';
-        var qAttr = '';
+        var qAttr = ' data-q="' + encodeURIComponent(query) + '"';
+        var targetAttr = r.item.targetId ? ' data-target="' + r.item.targetId + '"' : '';
         if (typeof r.snippetIdx === 'number') {
-          snippetHtml = '<span class="searchResultSnippet">' + makeSnippet(r.item.body, query, r.snippetIdx) + '</span>';
-          qAttr = ' data-q="' + encodeURIComponent(query) + '"';
+          snippetHtml = '<span class="searchResultSnippet">' + makeSnippet(r.item.body, terms, r.snippetIdx) + '</span>';
         }
-        html += '<div class="searchResultItem" data-nav="' + r.item.navId + '"' + qAttr + '>' +
+        html += '<div class="searchResultItem" data-nav="' + r.item.navId + '"' + targetAttr + qAttr + '>' +
                   '<span class="searchResultTitle">' + escapeHtml(r.item.title) + '</span>' +
+                  '<span class="searchResultPath">' + escapeHtml(r.item.path) + '</span>' +
                   snippetHtml +
                 '</div>';
-        if (i < results.length - 1) html += '<div class="searchResultDivider">
-</div>';
+        if (i < results.length - 1) html += '<div class="searchResultDivider"></div>';
       });
       searchResults.innerHTML = html;
       searchBox.classList.add('isOpen');
@@ -13144,20 +13199,31 @@ window.mpGoHomeSection = function(){
       if (!searchIndex) searchIndex = buildSearchIndex();
       query = query.trim();
       if (!query) { closeResults(); return; }
-      var qLower = query.toLowerCase();
-      var titleHits = [];
-      var bodyHits = [];
+      var terms = parseSearchTerms(query);
+      if (!terms.length) { closeResults(); return; }
+      var results = [];
       searchIndex.forEach(function(item){
         var titleLower = item.title.toLowerCase();
-        if (titleLower.indexOf(qLower) !== -1) {
-          titleHits.push({ item: item });
-        } else {
-          var bIdx = item.body.toLowerCase().indexOf(qLower);
-          if (bIdx !== -1) bodyHits.push({ item: item, snippetIdx: bIdx });
-        }
+        var pathLower = item.path.toLowerCase();
+        var bodyLower = item.body.toLowerCase();
+        var allText = titleLower + ' ' + pathLower + ' ' + bodyLower;
+        if (!terms.every(function(term){ return allText.indexOf(term) !== -1; })) return;
+
+        var score = item.level === 'detail' ? 8 : 0;
+        terms.forEach(function(term){
+          if (titleLower === term) score += 80;
+          else if (titleLower.indexOf(term) !== -1) score += 45;
+          if (pathLower.indexOf(term) !== -1) score += 22;
+          if (bodyLower.indexOf(term) !== -1) score += 5;
+        });
+        var firstBodyIdx = -1;
+        terms.some(function(term){ firstBodyIdx = bodyLower.indexOf(term); return firstBodyIdx !== -1; });
+        results.push({ item:item, score:score, snippetIdx:firstBodyIdx });
       });
-      var results = titleHits.concat(bodyHits).slice(0, 8);
-      renderResults(results, query);
+      results.sort(function(a,b){
+        return b.score - a.score || a.item.path.length - b.item.path.length;
+      });
+      renderResults(results.slice(0, 12), query, terms);
     }
 
     var debounceTimer = null;
@@ -13175,6 +13241,7 @@ window.mpGoHomeSection = function(){
       var item = e.target.closest('.searchResultItem');
       if (!item) return;
       var navId = item.getAttribute('data-nav');
+      var targetId = item.getAttribute('data-target');
       var radio = document.getElementById(navId);
       var qRaw = item.getAttribute('data-q');
       var query = qRaw ? decodeURIComponent(qRaw) : '';
@@ -13186,7 +13253,8 @@ window.mpGoHomeSection = function(){
 
       var sectionId = navId ? navId.replace(/^nav-/, '') : '';
       var sectionEl = sectionId ? document.getElementById(sectionId) : null;
-      var targetEl = query && sectionEl ? findScrollTarget(sectionEl, query) : null;
+      var targetEl = targetId ? document.getElementById(targetId) : null;
+      if (!targetEl) targetEl = query && sectionEl ? findScrollTarget(sectionEl, query) : null;
 
       // 라디오 토글로 섹션이 화면에 표시된 뒤(레이아웃 반영 후) 스크롤 이동
       requestAnimationFrame(function(){
