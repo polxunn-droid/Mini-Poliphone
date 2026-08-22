@@ -1303,6 +1303,16 @@ main{
   color:var(--navy-dark);
   margin-bottom:6px;
 }
+.dvChkNavigator{position:sticky;top:0;z-index:35;margin:0 -2px 10px;padding:8px 2px;background:var(--bg);border-bottom:1px solid var(--line);}
+.dvChkJumpRow,.dvChkFilterRow{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;}
+.dvChkJumpRow::-webkit-scrollbar,.dvChkFilterRow::-webkit-scrollbar{display:none;}
+.dvChkFilterRow{margin-top:6px;}
+.dvChkJump,.dvChkFilter{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:10px;padding:7px 10px;font-family:inherit;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer;flex:1;}
+.dvChkJump.isActive{background:var(--navy);border-color:var(--navy);color:#fff;}
+.dvChkFilter.isActive{background:var(--accent);border-color:var(--accent);color:#fff;}
+.dvFilterHidden{display:none!important;}
+#fm_dvchk .fmDocWrap > .fmSection{scroll-margin-top:118px;}
+html.dark .dvChkNavigator{background:var(--bg);}
 .fmChkTip{
   margin-top:3px;
   font-size:11px;
@@ -11862,8 +11872,8 @@ html.dark .homeNextDdayValue{
     </div>
   </div>
 
-  <div class="pageIntro" style="margin-top:18px;">아래 메뉴에서 서류·작성례를 확인하세요.</div>
-  <div class="menuGrid">
+  <div class="pageIntro" id="relcrimeResourceIntro" style="margin-top:18px;">아래 메뉴에서 서류·작성례를 확인하세요.</div>
+  <div class="menuGrid" id="relcrimeResourceGrid">
 <label for="nav-fm_dvchk" class="menuBtn">
 <span class="menuIcon">📝</span>
 <span class="menuText">
@@ -11895,6 +11905,19 @@ html.dark .homeNextDdayValue{
 <div class="subheader">
 <label for="nav-relcrime" class="backLink">&larr; 관계성범죄</label>
 <span class="subtitle">📝 관계성범죄 작성서류 체크리스트</span>
+</div>
+<div class="dvChkNavigator" id="dvChkNavigator">
+  <div class="dvChkJumpRow" aria-label="관계성범죄 항목 바로가기">
+    <button type="button" class="dvChkJump isActive" data-dv-index="0">가정폭력</button>
+    <button type="button" class="dvChkJump" data-dv-index="1">아동학대</button>
+    <button type="button" class="dvChkJump" data-dv-index="2">스토킹</button>
+    <button type="button" class="dvChkJump" data-dv-index="3">교제폭력</button>
+  </div>
+  <div class="dvChkFilterRow" aria-label="서류 유형 필터">
+    <button type="button" class="dvChkFilter isActive" data-dv-filter="all">전체</button>
+    <button type="button" class="dvChkFilter" data-dv-filter="basic">기본 서류</button>
+    <button type="button" class="dvChkFilter" data-dv-filter="extra">해당 시 서류</button>
+  </div>
 </div>
 <div class="fmChkProgress" data-chk-prefix="fm_dvchk">
 <div class="fmChkProgressBar">
@@ -12394,6 +12417,78 @@ window.mpGoHomeSection = function(){
       });
     }
   } catch (e) { /* localStorage 사용 불가 환경: 프로필 저장/다크모드 전환만 비활성, 나머지 정상 동작 */ }
+})();
+</script>
+
+<script>
+(function(){
+  try {
+    var relcrime = document.getElementById('relcrime');
+    var resourceIntro = document.getElementById('relcrimeResourceIntro');
+    var resourceGrid = document.getElementById('relcrimeResourceGrid');
+    var firstIntro = relcrime && relcrime.querySelector('.pageIntro');
+    if (firstIntro && resourceIntro && resourceGrid) {
+      firstIntro.insertAdjacentElement('afterend', resourceGrid);
+      firstIntro.insertAdjacentElement('afterend', resourceIntro);
+      resourceIntro.style.marginTop = '10px';
+    }
+
+    var checklist = document.getElementById('fm_dvchk');
+    var navigator = document.getElementById('dvChkNavigator');
+    if (!checklist || !navigator) return;
+    var sections = Array.prototype.slice.call(checklist.querySelectorAll('.fmDocWrap > .fmSection')).slice(0, 4);
+    var jumpBtns = Array.prototype.slice.call(navigator.querySelectorAll('.dvChkJump'));
+    var filterBtns = Array.prototype.slice.call(navigator.querySelectorAll('.dvChkFilter'));
+
+    function activateJump(index){
+      jumpBtns.forEach(function(btn, i){ btn.classList.toggle('isActive', i === index); });
+    }
+
+    jumpBtns.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var index = Number(btn.getAttribute('data-dv-index'));
+        var target = sections[index];
+        if (!target) return;
+        activateJump(index);
+        target.scrollIntoView({ behavior:'smooth', block:'start' });
+      });
+    });
+
+    window.setDvChkFilter = function(mode){
+      mode = mode || 'all';
+      filterBtns.forEach(function(btn){ btn.classList.toggle('isActive', btn.getAttribute('data-dv-filter') === mode); });
+      sections.forEach(function(section){
+        section.querySelectorAll('.fmChkBox').forEach(function(box){
+          var header = box.querySelector('.fmChkHeader');
+          var isExtra = !!(header && header.textContent.indexOf('추가') !== -1);
+          var visible = mode === 'all' || (mode === 'extra' ? isExtra : !isExtra);
+          box.classList.toggle('dvFilterHidden', !visible);
+        });
+      });
+    };
+
+    filterBtns.forEach(function(btn){
+      btn.addEventListener('click', function(){ window.setDvChkFilter(btn.getAttribute('data-dv-filter')); });
+    });
+
+    var scrollTicking = false;
+    function syncCurrentSection(){
+      scrollTicking = false;
+      var navRadio = document.getElementById('nav-fm_dvchk');
+      if (!navRadio || !navRadio.checked) return;
+      var threshold = navigator.getBoundingClientRect().bottom + 12;
+      var active = 0;
+      sections.forEach(function(section, index){
+        if (section.getBoundingClientRect().top <= threshold) active = index;
+      });
+      activateJump(active);
+    }
+    window.addEventListener('scroll', function(){
+      if (scrollTicking) return;
+      scrollTicking = true;
+      requestAnimationFrame(syncCurrentSection);
+    }, { passive:true });
+  } catch (e) { /* 탐색 기능 오류 시 기존 체크리스트는 그대로 표시 */ }
 })();
 </script>
 
@@ -13246,6 +13341,7 @@ window.mpGoHomeSection = function(){
       var qRaw = item.getAttribute('data-q');
       var query = qRaw ? decodeURIComponent(qRaw) : '';
       if (radio) radio.checked = true;
+      if (navId === 'nav-fm_dvchk' && window.setDvChkFilter) window.setDvChkFilter('all');
       searchInput.value = '';
       searchBox.classList.remove('hasQuery');
       closeResults();
