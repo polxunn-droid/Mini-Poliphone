@@ -1313,7 +1313,7 @@ main{
 .dvFilterHidden{display:none!important;}
 #fm_dvchk .fmDocWrap > .fmSection{scroll-margin-top:118px;}
 html.dark .dvChkNavigator{background:var(--bg);}
-.relQuickNav{margin:0 0 12px;padding:10px;background:var(--soft);border:1px solid var(--line);border-radius:14px;}
+.relQuickNav{margin:18px 0 14px;padding:10px;background:var(--soft);border:1px solid var(--line);border-radius:14px;}
 .relQuickLabel{margin:0 0 7px;font-size:12px;font-weight:800;color:var(--navy);}
 .relQuickRow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;}
 .relQuickRow::-webkit-scrollbar{display:none;}
@@ -1386,6 +1386,36 @@ html.dark #force .elementStep + .elementStep{border-top-color:#1f4a37;}
   word-break:keep-all;
 }
 .fmTable td:last-child{border-right:none;}
+
+/* 관계성범죄 형벌·과태료 표: 모바일 한 화면 표시 */
+#relcrime .relPenaltyTableWrap{
+  overflow-x:hidden;
+  margin:8px 0 12px;
+  touch-action:pan-y;
+}
+#relcrime .relPenaltyTable{
+  width:100%;
+  min-width:0;
+  table-layout:fixed;
+  font-size:9.5px;
+}
+#relcrime .relPenaltyTable th,
+#relcrime .relPenaltyTable td{
+  padding:6px 3px;
+  text-align:center;
+  white-space:normal;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+  line-height:1.4;
+}
+#relcrime .relPenaltyTable th:nth-child(1),
+#relcrime .relPenaltyTable td:nth-child(1){width:25%;}
+#relcrime .relPenaltyTable th:nth-child(2),
+#relcrime .relPenaltyTable td:nth-child(2){width:27%;}
+#relcrime .relPenaltyTable th:nth-child(3),
+#relcrime .relPenaltyTable td:nth-child(3){width:28%;}
+#relcrime .relPenaltyTable th:nth-child(4),
+#relcrime .relPenaltyTable td:nth-child(4){width:20%;}
 
 .fmKvTable{margin:8px 0;}
 
@@ -11633,7 +11663,7 @@ html.dark .homeNextDdayValue{
   </div>
 
   <div class="relQuickNav" id="relQuickNav">
-    <div class="relQuickLabel">범죄유형 바로가기</div>
+    <div class="relQuickLabel">유형별 조치 바로가기</div>
     <div class="relQuickRow" aria-label="관계성범죄 유형 바로가기">
       <button type="button" class="relQuickBtn isActive" data-rel-crime="0">가정폭력</button>
       <button type="button" class="relQuickBtn" data-rel-crime="1">아동학대</button>
@@ -11647,9 +11677,8 @@ html.dark .homeNextDdayValue{
 <span class="fmSectionIcon">🚫</span>현장조사 거부·기피 또는 업무수행 방해 관련 입법례</div>
       <div class="rptExplain">✓ 「아동학대처벌법」은 구성요건을 달리하여 형벌과 과태료 조항 둘 다 규정</div>
       <div class="fmH4">형벌</div>
-      <div class="fmHint">↔ 좌우로 밀어서 보기</div>
-      <div class="fmTableWrap">
-        <table class="fmTable">
+      <div class="fmTableWrap relPenaltyTableWrap">
+        <table class="fmTable relPenaltyTable">
           <thead>
 <tr>
 <th>근거법조항</th>
@@ -11687,8 +11716,8 @@ html.dark .homeNextDdayValue{
         </table>
       </div>
       <div class="fmH4">과태료</div>
-      <div class="fmTableWrap">
-        <table class="fmTable">
+      <div class="fmTableWrap relPenaltyTableWrap">
+        <table class="fmTable relPenaltyTable">
           <thead>
 <tr>
 <th>근거법조항</th>
