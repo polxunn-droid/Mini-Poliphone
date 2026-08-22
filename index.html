@@ -1313,6 +1313,14 @@ main{
 .dvFilterHidden{display:none!important;}
 #fm_dvchk .fmDocWrap > .fmSection{scroll-margin-top:118px;}
 html.dark .dvChkNavigator{background:var(--bg);}
+.relQuickNav{margin:0 0 12px;padding:10px;background:var(--soft);border:1px solid var(--line);border-radius:14px;}
+.relQuickLabel{margin:0 0 7px;font-size:12px;font-weight:800;color:var(--navy);}
+.relQuickRow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;}
+.relQuickRow::-webkit-scrollbar{display:none;}
+.relQuickRow + .relQuickLabel{margin-top:10px;}
+.relQuickBtn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:10px;padding:8px 10px;font-family:inherit;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer;flex:1;}
+.relQuickBtn.isActive{background:var(--navy);border-color:var(--navy);color:#fff;}
+#relcrime .rcTypeCard,#relcrime .rcStage{scroll-margin-top:18px;}
 .fmChkTip{
   margin-top:3px;
   font-size:11px;
@@ -2103,10 +2111,11 @@ html.dark .homeMilestoneToday::after{color:#dbe8f7;}
 /* ---- 지역경찰 업무 준비 배너 : 인사말 카드와 톤 통일(블루+화이트) ---- */
 .homeBanner{display:flex; align-items:center; gap:12px; background:linear-gradient(135deg, var(--hbg1) 0%, var(--card) 70%); border:1px solid var(--line); border-radius:18px; padding:14px 15px; margin:0 2px 18px; cursor:pointer; text-decoration:none; box-shadow:0 3px 10px rgba(30,58,95,.06);}
 html.dark .homeBanner{background:linear-gradient(135deg, #1c2937 0%, var(--card) 70%);}
-.homeBannerIcon{width:42px; height:42px; min-width:42px; border-radius:14px; background:var(--navy); display:flex; align-items:center; justify-content:center; font-size:19px; box-shadow:0 3px 8px rgba(20,40,63,.25); overflow:hidden;}
-.homeBannerIcon img{width:84%;height:84%;object-fit:contain;border-radius:0;}
-.toolCard[for="nav-fm_prep"] .toolIcon{background:var(--navy)!important;overflow:hidden;}
-.toolCard[for="nav-fm_prep"] .toolIcon img{width:84%;height:84%;object-fit:contain;border-radius:0;}
+.homeBannerIcon{width:42px; height:42px; min-width:42px; border-radius:14px; background:transparent; display:flex; align-items:center; justify-content:center; font-size:19px; box-shadow:none; overflow:visible;}
+.homeBannerIcon img{width:72%;height:72%;object-fit:contain;border-radius:0;}
+.toolCard[for="nav-fm_prep"] .toolIcon{background:transparent!important;box-shadow:none;overflow:visible;}
+.toolCard[for="nav-fm_prep"] .toolIcon img{width:72%;height:72%;object-fit:contain;border-radius:0;}
+#lawCenterLink .menuIcon img{width:82%;height:82%;object-fit:contain;}
 .homeBannerText{flex:1; min-width:0;}
 .homeBannerTitle{font-size:13.5px; font-weight:800; margin-bottom:3px; word-break:keep-all; color:var(--navy-dark);}
 html.dark .homeBannerTitle{color:#dbe8f7;}
@@ -11585,7 +11594,48 @@ html.dark .homeNextDdayValue{
 <img src="data:image/webp;base64,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" alt="">
 </span>관계성범죄</span>
 </div>
-  <div class="pageIntro">가정폭력·아동학대·스토킹 등 관계성범죄 현장 대응에 필요한 조치 구분표와 서식·작성례를 모았습니다.</div>
+  <div class="fmSectionTitle" style="margin-top:4px;">관계성범죄 참고자료</div>
+  <div class="menuGrid" id="relcrimeResourceGrid">
+<label for="nav-fm_dvchk" class="menuBtn">
+<span class="menuIcon">📝</span>
+<span class="menuText">
+<span class="menuTitle">관계성범죄<br>작성서류 체크리스트</span>
+<span class="cnt">참고자료</span>
+</span>
+</label>
+<label for="nav-domestic" class="menuBtn">
+<span class="menuIcon" style="background:linear-gradient(150deg,#FFFFFF 0%,#F5F3EE 100%);">
+<svg viewBox="0 0 64 64" style="width:66%;height:66%;">
+<path d="M32 8l22 17v29a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V25z" fill="#EDA860"/>
+<path d="M32 8l22 17v29a2 2 0 0 1-2 2H32z" fill="#E08A3E"/>
+<circle cx="26" cy="38" r="5.4" fill="#FDEEE3"/>
+<path d="M17 55c0-7.5 4-11.5 9-11.5s9 4 9 11.5z" fill="#FDEEE3"/>
+<circle cx="39" cy="43" r="3.6" fill="#FBD9BC"/>
+<path d="M33 55c0-5.4 2.7-8 6-8s6 2.6 6 8z" fill="#FBD9BC"/>
+<path d="M32 49l1.6 1.6" stroke="#E08A3E" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
+</span>
+<span class="menuText">
+<span class="menuTitle">가정폭력 · 아동학대<br>범죄사실 작성례</span>
+<span class="cnt">가정폭력 · 아동학대 범죄사실 작성례</span>
+</span>
+</label>
+  </div>
+
+  <div class="relQuickNav" id="relQuickNav">
+    <div class="relQuickLabel">범죄유형 바로가기</div>
+    <div class="relQuickRow" aria-label="관계성범죄 유형 바로가기">
+      <button type="button" class="relQuickBtn isActive" data-rel-crime="0">가정폭력</button>
+      <button type="button" class="relQuickBtn" data-rel-crime="1">아동학대</button>
+      <button type="button" class="relQuickBtn" data-rel-crime="2">스토킹</button>
+    </div>
+    <div class="relQuickLabel">조치유형 바로가기</div>
+    <div class="relQuickRow" aria-label="관계성범죄 조치 바로가기">
+      <button type="button" class="relQuickBtn" data-rel-stage="0">응급조치</button>
+      <button type="button" class="relQuickBtn" data-rel-stage="1">긴급임시조치</button>
+      <button type="button" class="relQuickBtn" data-rel-stage="2">임시조치</button>
+    </div>
+  </div>
 
   <div class="fmDocWrap">
     <div class="fmSection">
@@ -11872,33 +11922,6 @@ html.dark .homeNextDdayValue{
     </div>
   </div>
 
-  <div class="pageIntro" id="relcrimeResourceIntro" style="margin-top:18px;">아래 메뉴에서 서류·작성례를 확인하세요.</div>
-  <div class="menuGrid" id="relcrimeResourceGrid">
-<label for="nav-fm_dvchk" class="menuBtn">
-<span class="menuIcon">📝</span>
-<span class="menuText">
-<span class="menuTitle">관계성범죄<br>작성서류 체크리스트</span>
-<span class="cnt">참고자료</span>
-</span>
-</label>
-<label for="nav-domestic" class="menuBtn">
-<span class="menuIcon" style="background:linear-gradient(150deg,#FFFFFF 0%,#F5F3EE 100%);">
-<svg viewBox="0 0 64 64" style="width:66%;height:66%;">
-<path d="M32 8l22 17v29a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V25z" fill="#EDA860"/>
-<path d="M32 8l22 17v29a2 2 0 0 1-2 2H32z" fill="#E08A3E"/>
-<circle cx="26" cy="38" r="5.4" fill="#FDEEE3"/>
-<path d="M17 55c0-7.5 4-11.5 9-11.5s9 4 9 11.5z" fill="#FDEEE3"/>
-<circle cx="39" cy="43" r="3.6" fill="#FBD9BC"/>
-<path d="M33 55c0-5.4 2.7-8 6-8s6 2.6 6 8z" fill="#FBD9BC"/>
-<path d="M32 49l1.6 1.6" stroke="#E08A3E" stroke-width="1.6" stroke-linecap="round"/>
-</svg>
-</span>
-<span class="menuText">
-<span class="menuTitle">가정폭력 · 아동학대<br>범죄사실 작성례</span>
-<span class="cnt">가정폭력 · 아동학대 범죄사실 작성례</span>
-</span>
-</label>
-  </div>
 </section>
 
 <section id="fm_dvchk" class="view">
@@ -11912,11 +11935,6 @@ html.dark .homeNextDdayValue{
     <button type="button" class="dvChkJump" data-dv-index="1">아동학대</button>
     <button type="button" class="dvChkJump" data-dv-index="2">스토킹</button>
     <button type="button" class="dvChkJump" data-dv-index="3">교제폭력</button>
-  </div>
-  <div class="dvChkFilterRow" aria-label="서류 유형 필터">
-    <button type="button" class="dvChkFilter isActive" data-dv-filter="all">전체</button>
-    <button type="button" class="dvChkFilter" data-dv-filter="basic">기본 서류</button>
-    <button type="button" class="dvChkFilter" data-dv-filter="extra">해당 시 서류</button>
   </div>
 </div>
 <div class="fmChkProgress" data-chk-prefix="fm_dvchk">
@@ -12152,10 +12170,6 @@ html.dark .homeNextDdayValue{
 </div>
 </div>
 <div class="rptPara">※ 위 체크리스트는 중앙경찰학교 교육자료를 바탕으로 정리한 참고용이며, 청·경찰서별 서식·절차가 다를 수 있습니다.</div>
-</div>
-<div class="fmChkActions">
-<div class="fmChkActionBtn" data-chk-action="checkall" data-chk-prefix="fm_dvchk">전체 선택</div>
-<div class="fmChkActionBtn primary" data-chk-action="uncheckall" data-chk-prefix="fm_dvchk">전체 선택해제</div>
 </div>
 </div>
 </section>
@@ -12424,13 +12438,34 @@ window.mpGoHomeSection = function(){
 (function(){
   try {
     var relcrime = document.getElementById('relcrime');
-    var resourceIntro = document.getElementById('relcrimeResourceIntro');
-    var resourceGrid = document.getElementById('relcrimeResourceGrid');
-    var firstIntro = relcrime && relcrime.querySelector('.pageIntro');
-    if (firstIntro && resourceIntro && resourceGrid) {
-      firstIntro.insertAdjacentElement('afterend', resourceGrid);
-      firstIntro.insertAdjacentElement('afterend', resourceIntro);
-      resourceIntro.style.marginTop = '10px';
+    var relQuickNav = document.getElementById('relQuickNav');
+    if (relcrime && relQuickNav) {
+      var crimeCards = Array.prototype.slice.call(relcrime.querySelectorAll('.rcTypeCard'));
+      var crimeBtns = Array.prototype.slice.call(relQuickNav.querySelectorAll('[data-rel-crime]'));
+      var stageBtns = Array.prototype.slice.call(relQuickNav.querySelectorAll('[data-rel-stage]'));
+      var activeCrime = 0;
+
+      function selectCrime(index, shouldScroll){
+        if (!crimeCards[index]) return;
+        activeCrime = index;
+        crimeBtns.forEach(function(btn, i){ btn.classList.toggle('isActive', i === index); });
+        if (stageBtns[1]) stageBtns[1].textContent = index === 2 ? '긴급응급조치' : '긴급임시조치';
+        if (stageBtns[2]) stageBtns[2].textContent = index === 2 ? '잠정조치' : '임시조치';
+        if (shouldScroll) crimeCards[index].scrollIntoView({ behavior:'smooth', block:'start' });
+      }
+
+      crimeBtns.forEach(function(btn){
+        btn.addEventListener('click', function(){ selectCrime(Number(btn.getAttribute('data-rel-crime')), true); });
+      });
+
+      stageBtns.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var card = crimeCards[activeCrime];
+          var stages = card && card.querySelectorAll('.rcStage');
+          var target = stages && stages[Number(btn.getAttribute('data-rel-stage'))];
+          if (target) target.scrollIntoView({ behavior:'smooth', block:'start' });
+        });
+      });
     }
 
     var checklist = document.getElementById('fm_dvchk');
@@ -12438,7 +12473,6 @@ window.mpGoHomeSection = function(){
     if (!checklist || !navigator) return;
     var sections = Array.prototype.slice.call(checklist.querySelectorAll('.fmDocWrap > .fmSection')).slice(0, 4);
     var jumpBtns = Array.prototype.slice.call(navigator.querySelectorAll('.dvChkJump'));
-    var filterBtns = Array.prototype.slice.call(navigator.querySelectorAll('.dvChkFilter'));
 
     function activateJump(index){
       jumpBtns.forEach(function(btn, i){ btn.classList.toggle('isActive', i === index); });
@@ -12452,23 +12486,6 @@ window.mpGoHomeSection = function(){
         activateJump(index);
         target.scrollIntoView({ behavior:'smooth', block:'start' });
       });
-    });
-
-    window.setDvChkFilter = function(mode){
-      mode = mode || 'all';
-      filterBtns.forEach(function(btn){ btn.classList.toggle('isActive', btn.getAttribute('data-dv-filter') === mode); });
-      sections.forEach(function(section){
-        section.querySelectorAll('.fmChkBox').forEach(function(box){
-          var header = box.querySelector('.fmChkHeader');
-          var isExtra = !!(header && header.textContent.indexOf('추가') !== -1);
-          var visible = mode === 'all' || (mode === 'extra' ? isExtra : !isExtra);
-          box.classList.toggle('dvFilterHidden', !visible);
-        });
-      });
-    };
-
-    filterBtns.forEach(function(btn){
-      btn.addEventListener('click', function(){ window.setDvChkFilter(btn.getAttribute('data-dv-filter')); });
     });
 
     var scrollTicking = false;
@@ -13341,7 +13358,6 @@ window.mpGoHomeSection = function(){
       var qRaw = item.getAttribute('data-q');
       var query = qRaw ? decodeURIComponent(qRaw) : '';
       if (radio) radio.checked = true;
-      if (navId === 'nav-fm_dvchk' && window.setDvChkFilter) window.setDvChkFilter('all');
       searchInput.value = '';
       searchBox.classList.remove('hasQuery');
       closeResults();
