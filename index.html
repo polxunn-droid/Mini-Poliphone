@@ -1321,6 +1321,16 @@ html.dark .dvChkNavigator{background:var(--bg);}
 .relQuickBtn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:10px;padding:8px 10px;font-family:inherit;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer;flex:1;}
 .relQuickBtn.isActive{background:var(--navy);border-color:var(--navy);color:#fff;}
 #relcrime .rcTypeCard,#relcrime .rcStage{scroll-margin-top:18px;}
+#agecalc .tipsList,#force .elementsList{gap:0;border-radius:12px;overflow:hidden;}
+#agecalc .tipsList{background:var(--amber-light);border:1px solid #f2e2a8;}
+#force .elementsList{background:var(--green-light);border:1px solid #cdeadb;}
+#agecalc .tipStep,#force .elementStep{background:transparent;border:0;border-radius:0;padding:10px 12px;}
+#agecalc .tipStep + .tipStep{border-top:1px solid #ead993;}
+#force .elementStep + .elementStep{border-top:1px solid #b9ddca;}
+html.dark #agecalc .tipsList{background:#2c2510;border-color:#4a3f1a;}
+html.dark #force .elementsList{background:#123524;border-color:#1f4a37;}
+html.dark #agecalc .tipStep + .tipStep{border-top-color:#4a3f1a;}
+html.dark #force .elementStep + .elementStep{border-top-color:#1f4a37;}
 .fmChkTip{
   margin-top:3px;
   font-size:11px;
@@ -2112,9 +2122,9 @@ html.dark .homeMilestoneToday::after{color:#dbe8f7;}
 .homeBanner{display:flex; align-items:center; gap:12px; background:linear-gradient(135deg, var(--hbg1) 0%, var(--card) 70%); border:1px solid var(--line); border-radius:18px; padding:14px 15px; margin:0 2px 18px; cursor:pointer; text-decoration:none; box-shadow:0 3px 10px rgba(30,58,95,.06);}
 html.dark .homeBanner{background:linear-gradient(135deg, #1c2937 0%, var(--card) 70%);}
 .homeBannerIcon{width:42px; height:42px; min-width:42px; border-radius:14px; background:transparent; display:flex; align-items:center; justify-content:center; font-size:19px; box-shadow:none; overflow:visible;}
-.homeBannerIcon img{width:72%;height:72%;object-fit:contain;border-radius:0;}
+.homeBannerIcon img{width:78%;height:78%;object-fit:contain;border-radius:0;}
 .toolCard[for="nav-fm_prep"] .toolIcon{background:transparent!important;box-shadow:none;overflow:visible;}
-.toolCard[for="nav-fm_prep"] .toolIcon img{width:72%;height:72%;object-fit:contain;border-radius:0;}
+.toolCard[for="nav-fm_prep"] .toolIcon img{width:78%;height:78%;object-fit:contain;border-radius:0;}
 #lawCenterLink .menuIcon img{width:82%;height:82%;object-fit:contain;}
 .homeBannerText{flex:1; min-width:0;}
 .homeBannerTitle{font-size:13.5px; font-weight:800; margin-bottom:3px; word-break:keep-all; color:var(--navy-dark);}
@@ -2765,7 +2775,7 @@ html.dark .homeNextDdayValue{
 </span>
 <span class="menuText">
 <span class="menuTitle">변사자현장 점검목록</span>
-<span class="cnt">작성방법</span>
+<span class="cnt">변사현장 점검목록표 작성방법</span>
 </span>
 </label>
     </div>
@@ -2904,7 +2914,7 @@ html.dark .homeNextDdayValue{
 </span>
 <span class="mfRowText">
 <span class="mfRowTitle">변사자현장점검목록</span>
-<span class="mfRowSub">서식 재현 · 작성요령</span>
+<span class="mfRowSub">변사현장 점검목록표 작성방법</span>
 </span>
 <span class="mfChevron">›</span>
 </label>
@@ -11629,12 +11639,6 @@ html.dark .homeNextDdayValue{
       <button type="button" class="relQuickBtn" data-rel-crime="1">아동학대</button>
       <button type="button" class="relQuickBtn" data-rel-crime="2">스토킹</button>
     </div>
-    <div class="relQuickLabel">조치유형 바로가기</div>
-    <div class="relQuickRow" aria-label="관계성범죄 조치 바로가기">
-      <button type="button" class="relQuickBtn" data-rel-stage="0">응급조치</button>
-      <button type="button" class="relQuickBtn" data-rel-stage="1">긴급임시조치</button>
-      <button type="button" class="relQuickBtn" data-rel-stage="2">임시조치</button>
-    </div>
   </div>
 
   <div class="fmDocWrap">
@@ -12442,15 +12446,9 @@ window.mpGoHomeSection = function(){
     if (relcrime && relQuickNav) {
       var crimeCards = Array.prototype.slice.call(relcrime.querySelectorAll('.rcTypeCard'));
       var crimeBtns = Array.prototype.slice.call(relQuickNav.querySelectorAll('[data-rel-crime]'));
-      var stageBtns = Array.prototype.slice.call(relQuickNav.querySelectorAll('[data-rel-stage]'));
-      var activeCrime = 0;
-
       function selectCrime(index, shouldScroll){
         if (!crimeCards[index]) return;
-        activeCrime = index;
         crimeBtns.forEach(function(btn, i){ btn.classList.toggle('isActive', i === index); });
-        if (stageBtns[1]) stageBtns[1].textContent = index === 2 ? '긴급응급조치' : '긴급임시조치';
-        if (stageBtns[2]) stageBtns[2].textContent = index === 2 ? '잠정조치' : '임시조치';
         if (shouldScroll) crimeCards[index].scrollIntoView({ behavior:'smooth', block:'start' });
       }
 
@@ -12458,14 +12456,6 @@ window.mpGoHomeSection = function(){
         btn.addEventListener('click', function(){ selectCrime(Number(btn.getAttribute('data-rel-crime')), true); });
       });
 
-      stageBtns.forEach(function(btn){
-        btn.addEventListener('click', function(){
-          var card = crimeCards[activeCrime];
-          var stages = card && card.querySelectorAll('.rcStage');
-          var target = stages && stages[Number(btn.getAttribute('data-rel-stage'))];
-          if (target) target.scrollIntoView({ behavior:'smooth', block:'start' });
-        });
-      });
     }
 
     var checklist = document.getElementById('fm_dvchk');
