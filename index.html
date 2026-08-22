@@ -5907,7 +5907,7 @@ window.mpGoHomeSection = function(){
   import {
     getFirestore,
     doc, setDoc, getDoc, onSnapshot,
-    collection, updateDoc, deleteDoc
+    collection, updateDoc, deleteDoc, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
   // Your web app's Firebase configuration
@@ -6143,7 +6143,7 @@ window.mpGoHomeSection = function(){
         name: name,
         department: dept,
         status: "pending",
-        requestedAt: new Date()
+        requestedAt: serverTimestamp()
       });
 
       alert("승인 요청이 제출되었습니다.");
@@ -6415,4 +6415,3 @@ window.mpGoHomeSection = function(){
 </script>
 </body>
 </html>
-
