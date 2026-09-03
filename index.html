@@ -47,6 +47,13 @@
 </head>
 <body>
   <main class="card">
+    <section id="kakaoScreen" class="hidden">
+      <h1>🚫 카카오톡 인앱 브라우저</h1>
+      <p>카카오톡 안에서는 일부 기능이 정상적으로 작동하지 않아 이용이 제한됩니다.<br><br>오른쪽 위 메뉴를 눌러 <b>다른 브라우저로 열기</b>를 선택하거나, 아래 주소를 복사해 Safari 또는 Chrome에서 직접 열어주세요.</p>
+      <div id="kakaoUrl" class="status rejected"></div>
+      <button id="kakaoCopyButton" type="button">주소 복사하기</button>
+    </section>
+
     <section id="loadingScreen">
       <h1>🔒 미니 폴리폰</h1>
       <p>이용 권한을 안전하게 확인하고 있습니다.</p>
@@ -92,6 +99,49 @@
       <div id="errorMessage" class="status error"></div>
     </section>
   </main>
+
+  <script>
+    (function () {
+      try {
+        var ua = navigator.userAgent || "";
+        var isKakaoUA = /KAKAOTALK/i.test(ua);
+        var isIOS = /iPhone|iPad|iPod/i.test(ua);
+        var hasSafariToken = /Safari\//.test(ua);
+        var isStandalone = !!(window.navigator && window.navigator.standalone);
+        var isIOSInAppFallback = isIOS && !hasSafariToken && !isStandalone;
+        var isKakao = isKakaoUA || isIOSInAppFallback;
+
+        if (!isKakao) return;
+        window.__MP_KAKAO_BLOCKED__ = true;
+
+        ["loadingScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"].forEach(function (id) {
+          var element = document.getElementById(id);
+          if (element) element.classList.add("hidden");
+        });
+
+        var kakaoScreen = document.getElementById("kakaoScreen");
+        var kakaoUrl = document.getElementById("kakaoUrl");
+        var copyButton = document.getElementById("kakaoCopyButton");
+        if (kakaoScreen) kakaoScreen.classList.remove("hidden");
+        if (kakaoUrl) kakaoUrl.textContent = location.href;
+
+        if (copyButton) {
+          copyButton.addEventListener("click", async function () {
+            try {
+              await navigator.clipboard.writeText(location.href);
+              var original = copyButton.textContent;
+              copyButton.textContent = "복사됨!";
+              setTimeout(function () { copyButton.textContent = original; }, 1500);
+            } catch (error) {
+              alert("복사에 실패했습니다. 주소를 길게 눌러 직접 복사해주세요.");
+            }
+          });
+        }
+      } catch (error) {
+        console.error("인앱 브라우저 감지 실패:", error);
+      }
+    })();
+  </script>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
@@ -251,7 +301,7 @@
       }
     }
 
-    start();
+    if (!window.__MP_KAKAO_BLOCKED__) start();
   </script>
 </body>
 </html>
