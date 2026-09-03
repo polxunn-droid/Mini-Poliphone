@@ -42,6 +42,7 @@
     .pending { background: #fff8e6; color: #806400; }
     .rejected, .error { background: #fff0ee; color: #b42318; }
     .loading { background: #eaf1fa; color: #1e3a5f; }
+    .google-button { background: #fff; color: #1f2937; border: 1px solid #cbd5e1; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -58,6 +59,13 @@
       <h1>🔒 미니 폴리폰</h1>
       <p>이용 권한을 안전하게 확인하고 있습니다.</p>
       <div id="loadingMessage" class="status loading">Firebase 연결 중…</div>
+    </section>
+
+    <section id="googleScreen" class="hidden">
+      <h1>Google 계정 로그인</h1>
+      <p>승인 신청과 이용 권한 복구를 위해 Google 계정으로 로그인해 주세요.<br>다른 브라우저에서도 같은 계정으로 이용할 수 있습니다.</p>
+      <button id="googleSignInButton" class="google-button" type="button">Google 계정으로 계속하기</button>
+      <div id="googleMessage" class="status hidden"></div>
     </section>
 
     <section id="requestScreen" class="hidden">
@@ -145,9 +153,11 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
     import {
-      getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
+      getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, getIdTokenResult
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -162,9 +172,12 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const screens = ["loadingScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"];
+    const screens = ["loadingScreen", "googleScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"];
     let currentUser = null;
     let appLoading = false;
+    let stopAccessListener = null;
+    let sessionActivationPromise = null;
+    const LEGACY_ADMIN_USER_IDS = ["UC7f5GtCUrhkVE36OJZQBL2hyB33"];
 
     function show(id) {
       screens.forEach(screenId => {
@@ -172,11 +185,19 @@
       });
     }
 
-    function setUid(uid) {
-      const text = "내 식별 ID: " + uid;
+    function setIdentity(user) {
+      const text = user && !user.isAnonymous && user.email
+        ? "로그인 계정: " + user.email
+        : "내 식별 ID: " + user.uid;
       document.getElementById("requestUid").textContent = text;
       document.getElementById("pendingUid").textContent = text;
       document.getElementById("rejectedUid").textContent = text;
+    }
+
+    function showGoogleError(error) {
+      const message = document.getElementById("googleMessage");
+      message.textContent = "Google 로그인에 실패했습니다: " + (error.code || error.message || error);
+      message.className = "status error";
     }
 
     function base64ToBytes(value) {
@@ -184,6 +205,246 @@
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       return bytes;
+    }
+
+    function getBrowserSessionId(uid) {
+      const key = "mp_active_session_" + uid;
+      try {
+        let value = localStorage.getItem(key);
+        if (!value) {
+          value = crypto.randomUUID();
+          localStorage.setItem(key, value);
+        }
+        return value;
+      } catch (_) {
+        return crypto.randomUUID();
+      }
+    }
+
+    async function getSessionValues(user) {
+      const tokenResult = await getIdTokenResult(user, true);
+      const activeAuthTime = Number(tokenResult.claims.auth_time);
+      if (!Number.isFinite(activeAuthTime)) throw new Error("로그인 시각을 확인할 수 없습니다.");
+      return {
+        activeAuthTime,
+        activeSessionId: getBrowserSessionId(user.uid)
+      };
+    }
+
+    async function activateSession(user, requestRef, requestData) {
+      if (!user || user.isAnonymous) return;
+      if (sessionActivationPromise) return sessionActivationPromise;
+
+      sessionActivationPromise = (async () => {
+        const session = await getSessionValues(user);
+        if (requestData.activeAuthTime === session.activeAuthTime
+            && requestData.activeSessionId === session.activeSessionId) return;
+
+        await updateDoc(requestRef, {
+          activeAuthTime: session.activeAuthTime,
+          activeSessionId: session.activeSessionId,
+          sessionUpdatedAt: serverTimestamp()
+        });
+      })();
+
+      try {
+        await sessionActivationPromise;
+      } finally {
+        sessionActivationPromise = null;
+      }
+    }
+
+    function addGoogleLinkingToProtectedApp(html) {
+      if (html.includes('id="googleLinkCard"')) return html;
+
+      html = html.replace(
+        "getAuth, signInAnonymously, onAuthStateChanged",
+        "getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, getIdTokenResult, signOut"
+      );
+
+      const accountCard = `
+<div class="stCard" id="googleLinkCard">
+<div class="stLabel">Google 계정 연동</div>
+<div class="stRow">
+<span class="stRowIcon">🔐</span>
+<span class="stRowText">
+<span class="stRowTitle" id="googleLinkTitle">계정 복구 설정</span>
+<span class="stRowSub" id="googleLinkStatus">연동 상태를 확인하고 있습니다.</span>
+</span>
+<button class="pcChangeBtn" id="googleLinkButton" type="button">Google 계정 연동</button>
+</div>
+<div class="stSaveMsg" id="googleLinkMessage"></div>
+</div>
+`;
+
+      html = html.replace(
+        /(<div class="stCard">\s*<div class="stLabel">환경설정<\/div>)/,
+        accountCard + "$1"
+      );
+
+      const accountLogic = `
+
+  const googleLinkButton = document.getElementById("googleLinkButton");
+  const googleLinkTitle = document.getElementById("googleLinkTitle");
+  const googleLinkStatus = document.getElementById("googleLinkStatus");
+  const googleLinkMessage = document.getElementById("googleLinkMessage");
+  let currentSessionAuthTime = null;
+  let currentBrowserSessionId = null;
+  let sessionReplacementHandled = false;
+
+  function getCurrentBrowserSessionId(uid) {
+    const key = "mp_active_session_" + uid;
+    try {
+      let value = localStorage.getItem(key);
+      if (!value) {
+        value = crypto.randomUUID();
+        localStorage.setItem(key, value);
+      }
+      return value;
+    } catch (_) {
+      return crypto.randomUUID();
+    }
+  }
+
+  async function prepareSessionIdentity(user) {
+    if (!user || user.isAnonymous) {
+      currentSessionAuthTime = null;
+      currentBrowserSessionId = null;
+      return null;
+    }
+    const tokenResult = await getIdTokenResult(user, true);
+    currentSessionAuthTime = Number(tokenResult.claims.auth_time);
+    currentBrowserSessionId = getCurrentBrowserSessionId(user.uid);
+    return {
+      activeAuthTime: currentSessionAuthTime,
+      activeSessionId: currentBrowserSessionId
+    };
+  }
+
+  async function claimCurrentSession(user) {
+    const session = await prepareSessionIdentity(user);
+    if (!session) return;
+    await updateDoc(doc(db, "access_requests", user.uid), {
+      activeAuthTime: session.activeAuthTime,
+      activeSessionId: session.activeSessionId,
+      sessionUpdatedAt: serverTimestamp()
+    });
+  }
+
+  function isSessionReplaced(data) {
+    if (currentSessionAuthTime == null || !currentBrowserSessionId) return false;
+    return Number(data.activeAuthTime) !== currentSessionAuthTime
+      || data.activeSessionId !== currentBrowserSessionId;
+  }
+
+  async function handleSessionReplacement() {
+    if (sessionReplacementHandled) return;
+    sessionReplacementHandled = true;
+    try { localStorage.removeItem("mp_approval_status"); } catch (_) {}
+    await signOut(auth).catch(() => {});
+    alert("다른 기기에서 로그인하여 현재 기기의 이용이 종료되었습니다.");
+    location.reload();
+  }
+
+  function updateGoogleLinkUi(user) {
+    if (!googleLinkButton || !googleLinkStatus) return;
+    const googleProvider = user && user.providerData
+      ? user.providerData.find(item => item.providerId === "google.com")
+      : null;
+
+    if (googleProvider) {
+      if (googleLinkTitle) googleLinkTitle.textContent = "Google 계정 연동 완료";
+      googleLinkStatus.textContent = googleProvider.email || user.email || "Google 계정이 연결되어 있습니다.";
+      googleLinkButton.textContent = "연동 완료";
+      googleLinkButton.disabled = true;
+    } else {
+      if (googleLinkTitle) googleLinkTitle.textContent = "계정 복구 설정";
+      googleLinkStatus.textContent = "현재 UID를 Google 계정에 연결하면 다른 브라우저에서도 권한을 복구할 수 있습니다.";
+      googleLinkButton.textContent = "Google 계정 연동";
+      googleLinkButton.disabled = false;
+    }
+  }
+
+  if (googleLinkButton) {
+    googleLinkButton.addEventListener("click", async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        if (googleLinkMessage) googleLinkMessage.textContent = "로그인 상태를 확인할 수 없습니다. 새로고침 후 다시 시도해주세요.";
+        return;
+      }
+
+      const originalUid = user.uid;
+      googleLinkButton.disabled = true;
+      googleLinkButton.textContent = "연동 중...";
+      if (googleLinkMessage) googleLinkMessage.textContent = "";
+
+      try {
+        const result = await linkWithPopup(user, new GoogleAuthProvider());
+        if (result.user.uid !== originalUid) throw new Error("연동 후 사용자 ID가 일치하지 않습니다.");
+        await claimCurrentSession(result.user);
+        updateGoogleLinkUi(result.user);
+        if (googleLinkMessage) googleLinkMessage.textContent = "✓ 기존 승인 권한과 Google 계정이 연결되었습니다.";
+      } catch (error) {
+        console.error("Google 계정 연동 실패:", error);
+        if (googleLinkMessage) {
+          googleLinkMessage.textContent = error.code === "auth/credential-already-in-use"
+            ? "이 Google 계정은 이미 다른 미니 폴리폰 계정에 연결되어 있습니다. 관리자에게 계정 병합을 요청해주세요."
+            : "Google 계정 연동에 실패했습니다: " + (error.code || error.message || error);
+        }
+        updateGoogleLinkUi(auth.currentUser);
+      }
+    });
+  }
+`;
+
+      html = html.replace(
+        "  const auth = getAuth(app);",
+        "  const auth = getAuth(app);" + accountLogic
+      );
+
+      html = html.replace(
+        "  onAuthStateChanged(auth, (user) => {\n    if (user) {\n      startAuthedApp(user.uid);\n    }\n  });",
+        `  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      try { await prepareSessionIdentity(user); } catch (error) { console.error("세션 정보 확인 실패:", error); }
+      updateGoogleLinkUi(user);
+      startAuthedApp(user.uid);
+    }
+  });`
+      );
+
+      html = html.replace(
+        "      if (docSnap.exists()) {\n        applyStatusToScreen(docSnap.data().status);",
+        `      if (docSnap.exists()) {
+        const accessData = docSnap.data();
+        if (isSessionReplaced(accessData)) {
+          handleSessionReplacement();
+          return;
+        }
+        applyStatusToScreen(accessData.status);`
+      );
+
+      html = html.replace(
+        "      const status = docSnap.exists() ? docSnap.data().status : null;",
+        `      const accessData = docSnap.exists() ? docSnap.data() : null;
+      if (accessData && isSessionReplaced(accessData)) {
+        handleSessionReplacement();
+        return;
+      }
+      const status = accessData ? accessData.status : null;`
+      );
+
+      html = html.replace(
+        /  signInAnonymously\(auth\)\.catch\(\(err\) => \{\s*console\.error\("익명 로그인 실패:", err\);\s*alert\("이용 승인 시스템 초기화에 실패했습니다\. 네트워크 상태를 확인한 뒤 새로고침 해주세요\."\);\s*\}\);/,
+        `  auth.authStateReady().then(() => {
+    if (!auth.currentUser) return signInAnonymously(auth);
+  }).catch((err) => {
+    console.error("인증 초기화 실패:", err);
+    alert("이용 승인 시스템 초기화에 실패했습니다. 네트워크 상태를 확인한 뒤 새로고침 해주세요.");
+  });`
+      );
+
+      return html;
     }
 
     async function loadProtectedApp() {
@@ -223,7 +484,18 @@
         });
 
         if (combined.length !== totalBytes) throw new Error("보호 본문 크기가 일치하지 않습니다.");
-        const html = new TextDecoder("utf-8", { fatal: true }).decode(combined);
+        let html = new TextDecoder("utf-8", { fatal: true }).decode(combined);
+        html = addGoogleLinkingToProtectedApp(html);
+
+        // 보호 앱의 기존 관리자 배열에 마이그레이션 대상 UID를 추가한다.
+        // 실제 권한은 Firestore 보안 규칙에서도 별도로 허용되어야 한다.
+        LEGACY_ADMIN_USER_IDS.forEach(uid => {
+          if (html.includes(uid)) return;
+          html = html.replace(
+            /(const\s+ADMIN_USER_IDS\s*=\s*\[[\s\S]*?)(\]\s*;)/,
+            (_, listStart, listEnd) => `${listStart}    "${uid}",\n  ${listEnd}`
+          );
+        });
 
         document.open("text/html", "replace");
         document.write(html);
@@ -236,37 +508,61 @@
       }
     }
 
-    async function start() {
+    function watchAccess(user) {
+      if (stopAccessListener) stopAccessListener();
+      const requestRef = doc(db, "access_requests", user.uid);
+
+      stopAccessListener = onSnapshot(requestRef, async snapshot => {
+        if (!snapshot.exists()) {
+          appLoading = false;
+          show(user.isAnonymous ? "googleScreen" : "requestScreen");
+          return;
+        }
+
+        const requestData = snapshot.data();
+        const status = requestData.status;
+        if (status === "approved") {
+          try {
+            await activateSession(user, requestRef, requestData);
+            loadProtectedApp();
+          } catch (error) {
+            document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
+            show("errorScreen");
+          }
+        }
+        else if (status === "rejected") show("rejectedScreen");
+        else show("pendingScreen");
+      }, error => {
+        document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
+        show("errorScreen");
+      });
+    }
+
+    document.getElementById("googleSignInButton").addEventListener("click", async () => {
+      const button = document.getElementById("googleSignInButton");
+      const message = document.getElementById("googleMessage");
+      button.disabled = true;
+      message.classList.add("hidden");
+
       try {
-        await auth.authStateReady();
-        currentUser = auth.currentUser || (await signInAnonymously(auth)).user;
-        setUid(currentUser.uid);
+        const result = await signInWithPopup(auth, new GoogleAuthProvider());
+        currentUser = result.user;
+        setIdentity(currentUser);
+        watchAccess(currentUser);
+      } catch (error) {
+        console.error(error);
+        showGoogleError(error);
+      } finally {
+        button.disabled = false;
+      }
+    });
 
-        try {
-          const savedName = localStorage.getItem("mp_userName");
-          const savedOrg = localStorage.getItem("mp_userOrg");
-          if (savedName) document.getElementById("name").value = savedName;
-          if (savedOrg) document.getElementById("department").value = savedOrg;
-        } catch (_) {}
-
-        const requestRef = doc(db, "access_requests", currentUser.uid);
-        onSnapshot(requestRef, snapshot => {
-          if (!snapshot.exists()) {
-            appLoading = false;
-            show("requestScreen");
+    document.getElementById("requestButton").addEventListener("click", async () => {
+          if (!currentUser || currentUser.isAnonymous) {
+            show("googleScreen");
             return;
           }
 
-          const status = snapshot.data().status;
-          if (status === "approved") loadProtectedApp();
-          else if (status === "rejected") show("rejectedScreen");
-          else show("pendingScreen");
-        }, error => {
-          document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
-          show("errorScreen");
-        });
-
-        document.getElementById("requestButton").addEventListener("click", async () => {
           const name = document.getElementById("name").value.trim();
           const department = document.getElementById("department").value;
           if (!name || !department) {
@@ -277,12 +573,18 @@
           const button = document.getElementById("requestButton");
           button.disabled = true;
           try {
+            const requestRef = doc(db, "access_requests", currentUser.uid);
+            const session = await getSessionValues(currentUser);
             await setDoc(requestRef, {
               userId: currentUser.uid,
+              email: currentUser.email || "",
               name,
               department,
               status: "pending",
-              requestedAt: serverTimestamp()
+              requestedAt: serverTimestamp(),
+              activeAuthTime: session.activeAuthTime,
+              activeSessionId: session.activeSessionId,
+              sessionUpdatedAt: serverTimestamp()
             });
             try {
               localStorage.setItem("mp_userName", name);
@@ -294,7 +596,22 @@
             alert("승인 요청을 보내지 못했습니다: " + (error.code || error.message || error));
             button.disabled = false;
           }
-        });
+    });
+
+    async function start() {
+      try {
+        await auth.authStateReady();
+        currentUser = auth.currentUser || (await signInAnonymously(auth)).user;
+        setIdentity(currentUser);
+
+        try {
+          const savedName = localStorage.getItem("mp_userName");
+          const savedOrg = localStorage.getItem("mp_userOrg");
+          if (savedName) document.getElementById("name").value = savedName;
+          if (savedOrg) document.getElementById("department").value = savedOrg;
+        } catch (_) {}
+
+        watchAccess(currentUser);
       } catch (error) {
         document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
         show("errorScreen");
