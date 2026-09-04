@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
   <title>미니 폴리폰</title>
+  <script src="https://accounts.google.com/gsi/client?hl=ko" async defer></script>
   <style>
     * { box-sizing: border-box; }
     html, body { min-height: 100%; }
@@ -38,6 +39,7 @@
     input, select { padding: 0 13px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 16px; }
     button { margin-top: 18px; padding: 12px 14px; border: 0; background: #1e3a5f; color: #fff; font-weight: 800; cursor: pointer; }
     button:disabled { opacity: .55; cursor: wait; }
+    .google-button-slot { width: 100%; min-height: 44px; margin-top: 18px; display: flex; justify-content: center; }
     .status { margin: 18px 0 0; padding: 13px; border-radius: 11px; background: #f8fafc; color: #475569; font-size: 13px; overflow-wrap: anywhere; }
     .pending { background: #fff8e6; color: #806400; }
     .rejected, .error { background: #fff0ee; color: #b42318; }
@@ -58,6 +60,13 @@
       <h1>🔒 미니 폴리폰</h1>
       <p>이용 권한을 안전하게 확인하고 있습니다.</p>
       <div id="loadingMessage" class="status loading">Firebase 연결 중…</div>
+    </section>
+
+    <section id="loginScreen" class="hidden">
+      <h1>🔐 Google 계정 로그인</h1>
+      <p>처음 이용하는 사용자는 Google 계정으로 로그인한 뒤 이용 승인을 신청할 수 있습니다.</p>
+      <div id="googleLoginButton" class="google-button-slot" aria-label="Google 계정으로 로그인"></div>
+      <div id="googleLoginMessage" class="status">승인된 기존 이용자는 자동으로 접속됩니다.</div>
     </section>
 
     <section id="requestScreen" class="hidden">
@@ -114,7 +123,7 @@
         if (!isKakao) return;
         window.__MP_KAKAO_BLOCKED__ = true;
 
-        ["loadingScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"].forEach(function (id) {
+        ["loadingScreen", "loginScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"].forEach(function (id) {
           var element = document.getElementById(id);
           if (element) element.classList.add("hidden");
         });
@@ -145,7 +154,9 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+    import {
+      getAuth, GoogleAuthProvider, signInWithCredential, linkWithCredential
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
     import {
       getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -158,13 +169,16 @@
       messagingSenderId: "1044994708052",
       appId: "1:1044994708052:web:6df7a5bdfd23bbf91153c1"
     };
+    const GOOGLE_CLIENT_ID = "1044994708052-lgu9t4glgml0ih6c9cm4pp319d1fouim.apps.googleusercontent.com";
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    auth.useDeviceLanguage();
     const db = getFirestore(app);
-    const screens = ["loadingScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"];
+    const screens = ["loadingScreen", "loginScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"];
     let currentUser = null;
     let appLoading = false;
+    let accessStarted = false;
 
     function show(id) {
       screens.forEach(screenId => {
@@ -236,10 +250,11 @@
       }
     }
 
-    async function start() {
+    function startAccessCheck(user) {
+      if (!user || accessStarted) return;
+      accessStarted = true;
+      currentUser = user;
       try {
-        await auth.authStateReady();
-        currentUser = auth.currentUser || (await signInAnonymously(auth)).user;
         setUid(currentUser.uid);
 
         try {
@@ -301,7 +316,97 @@
       }
     }
 
-    if (!window.__MP_KAKAO_BLOCKED__) start();
+    async function handleGoogleCredential(response) {
+      const message = document.getElementById("googleLoginMessage");
+      try {
+        if (!response || !response.credential) throw new Error("Google 인증정보를 받지 못했습니다.");
+        message.textContent = "Google 계정을 확인하고 있습니다…";
+        const credential = GoogleAuthProvider.credential(response.credential);
+        const result = auth.currentUser && auth.currentUser.isAnonymous
+          ? await linkWithCredential(auth.currentUser, credential)
+          : await signInWithCredential(auth, credential);
+        startAccessCheck(result.user);
+      } catch (error) {
+        console.error("Google 로그인 실패:", error);
+        if (error.code === "auth/credential-already-in-use" || error.code === "auth/account-exists-with-different-credential") {
+          message.textContent = "이 Google 계정은 이미 다른 식별 ID에 연결되어 있습니다. 관리자에게 문의해주세요.";
+        } else {
+          message.textContent = "Google 로그인에 실패했습니다: " + (error.code || error.message || error);
+        }
+      }
+    }
+
+    function renderGoogleLoginButton() {
+      const slot = document.getElementById("googleLoginButton");
+      let tries = 0;
+      const timer = setInterval(() => {
+        tries += 1;
+        if (window.google && window.google.accounts && window.google.accounts.id) {
+          clearInterval(timer);
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredential,
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+          slot.replaceChildren();
+          window.google.accounts.id.renderButton(slot, {
+            type: "standard",
+            theme: "outline",
+            size: "large",
+            text: "continue_with",
+            shape: "rectangular",
+            logo_alignment: "left",
+            width: Math.min(360, Math.max(240, slot.clientWidth || 360))
+          });
+        } else if (tries >= 100) {
+          clearInterval(timer);
+          document.getElementById("googleLoginMessage").textContent =
+            "Google 로그인 모듈을 불러오지 못했습니다. 네트워크 연결 후 새로고침해주세요.";
+        }
+      }, 100);
+    }
+
+    async function routeUser(user) {
+      if (!user) {
+        document.getElementById("googleLoginMessage").textContent = "Google 로그인 후 이용 승인을 신청할 수 있습니다.";
+        show("loginScreen");
+        return;
+      }
+
+      // Google 계정 사용자는 자신의 UID 승인 상태를 바로 확인합니다.
+      if (!user.isAnonymous) {
+        startAccessCheck(user);
+        return;
+      }
+
+      // 익명 사용자는 현재 UID가 이미 승인된 경우에만 자동 접속합니다.
+      // 미승인·대기·거절·신청 이력 없음 상태라면 Google 연결이 먼저입니다.
+      const requestSnap = await getDoc(doc(db, "access_requests", user.uid));
+      const status = requestSnap.exists() ? requestSnap.data().status : null;
+      if (status === "approved") {
+        startAccessCheck(user);
+      } else {
+        document.getElementById("googleLoginMessage").textContent =
+          "Google 계정을 연결한 뒤 현재 승인 상태를 확인하거나 새 승인을 신청합니다.";
+        show("loginScreen");
+      }
+    }
+
+    async function start() {
+      try {
+        await auth.authStateReady();
+        await routeUser(auth.currentUser);
+      } catch (error) {
+        document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
+        show("errorScreen");
+      }
+    }
+
+    if (!window.__MP_KAKAO_BLOCKED__) {
+      renderGoogleLoginButton();
+      start();
+    }
   </script>
 </body>
 </html>
