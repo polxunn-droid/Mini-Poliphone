@@ -297,6 +297,8 @@
               name,
               department,
               status: "pending",
+              googleLinked: true,
+              googleEmail: currentUser.email || "",
               requestedAt: serverTimestamp()
             });
             try {

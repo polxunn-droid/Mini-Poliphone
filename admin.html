@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>미니폴리폰 관리자</title>
+  <script src="https://accounts.google.com/gsi/client?hl=ko" async defer></script>
+  <style>
+    :root { --navy:#17365d; --blue:#2563eb; --bg:#f1f5f9; --card:#fff; --line:#dbe3ed; --text:#172033; --sub:#64748b; --red:#dc2626; --green:#15803d; --amber:#b45309; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; }
+    button,input,textarea { font:inherit; }
+    button { cursor:pointer; }
+    .hidden { display:none!important; }
+    .shell { width:min(100%,980px); margin:0 auto; padding:22px 16px 60px; }
+    .topbar { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .topbar h1 { flex:1; margin:0; font-size:23px; }
+    .homeLink,.signOutBtn { padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--navy); text-decoration:none; font-size:13px; font-weight:800; }
+    .card { margin-bottom:16px; padding:22px; border:1px solid var(--line); border-radius:18px; background:var(--card); box-shadow:0 5px 18px rgba(15,23,42,.05); }
+    .centerCard { width:min(100%,440px); margin:70px auto 0; text-align:center; }
+    .centerCard h2 { margin:0 0 10px; font-size:21px; }
+    .centerCard p { margin:0 0 20px; color:var(--sub); font-size:14px; line-height:1.65; }
+    .googleSlot { min-height:44px; display:flex; justify-content:center; align-items:center; }
+    .statusBox { margin-top:16px; padding:12px; border-radius:10px; background:#f8fafc; color:var(--sub); font-size:13px; overflow-wrap:anywhere; }
+    .statusBox.error { background:#fef2f2; color:var(--red); }
+    .sectionTitle { margin:0 0 5px; font-size:18px; }
+    .sectionSub { margin:0 0 18px; color:var(--sub); font-size:13px; line-height:1.55; }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:16px; }
+    .stat { padding:13px 8px; border-radius:12px; background:#f8fafc; text-align:center; }
+    .stat b { display:block; margin-top:3px; font-size:22px; }
+    .stat.pending b { color:var(--amber); } .stat.approved b { color:var(--green); } .stat.rejected b { color:var(--red); }
+    .filters { display:flex; gap:7px; overflow:auto; padding-bottom:8px; }
+    .filterBtn { flex:0 0 auto; padding:9px 13px; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--sub); font-weight:800; }
+    .filterBtn.active { border-color:var(--navy); background:var(--navy); color:#fff; }
+    .search { width:100%; min-height:44px; margin:8px 0 12px; padding:0 13px; border:1px solid var(--line); border-radius:11px; font-size:16px; }
+    .userList { border-top:1px solid var(--line); }
+    .empty { padding:28px 8px; color:var(--sub); text-align:center; font-size:14px; }
+    .userItem { padding:16px 2px; border-bottom:1px solid var(--line); }
+    .userHead { display:flex; align-items:flex-start; gap:10px; }
+    .userInfo { flex:1; min-width:0; }
+    .userName { font-weight:900; }
+    .userMeta { margin-top:4px; color:var(--sub); font-size:12px; overflow-wrap:anywhere; }
+    .googleState { display:inline-flex; margin-top:7px; padding:4px 8px; border-radius:999px; font-size:11px; font-weight:900; }
+    .googleState.linked { background:#eff6ff; color:#1d4ed8; }
+    .googleState.unlinked { background:#fef2f2; color:var(--red); }
+    .googleState.unknown { background:#f1f5f9; color:var(--sub); }
+    .badge { flex:0 0 auto; padding:5px 9px; border-radius:999px; font-size:11px; font-weight:900; }
+    .badge.pending { background:#fff7ed; color:var(--amber); } .badge.approved { background:#f0fdf4; color:var(--green); } .badge.rejected { background:#fef2f2; color:var(--red); }
+    .actions { display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin-top:12px; }
+    .actionBtn { min-height:39px; border:0; border-radius:9px; color:#fff; font-size:13px; font-weight:900; }
+    .approveBtn { background:var(--green); } .rejectBtn { background:#d97706; } .deleteBtn { background:var(--red); }
+    .actionBtn:disabled { opacity:.35; cursor:default; }
+    label { display:block; margin:13px 0 6px; font-size:13px; font-weight:900; }
+    .field { width:100%; padding:12px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--text); font-size:16px; }
+    textarea.field { min-height:150px; resize:vertical; line-height:1.6; }
+    .noticeOptions { display:flex; align-items:center; gap:8px; margin:12px 0; color:var(--sub); font-size:13px; }
+    .noticeOptions input { width:19px; height:19px; }
+    .noticeActions { display:grid; grid-template-columns:2fr 1fr 1fr; gap:8px; }
+    .noticeBtn { min-height:44px; border:0; border-radius:10px; color:#fff; font-weight:900; }
+    .saveNotice { background:var(--blue); } .stopNotice { background:#64748b; } .deleteNotice { background:var(--red); }
+    .saveMessage { min-height:20px; margin-top:10px; color:var(--green); font-size:13px; font-weight:800; }
+    @media (max-width:620px) { .shell{padding:16px 12px 50px}.card{padding:18px 15px}.topbar h1{font-size:19px}.homeLink{display:none}.noticeActions{grid-template-columns:1fr}.actions{gap:5px} }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <h1>🔑 미니폴리폰 관리자</h1>
+      <a class="homeLink" href="./">미니폴리폰</a>
+      <button class="signOutBtn hidden" id="signOutBtn" type="button">로그아웃</button>
+    </header>
+
+    <section class="card centerCard" id="authView">
+      <h2>관리자 Google 로그인</h2>
+      <p>기존 관리자 UID에 연결된 Google 계정으로 로그인하세요.</p>
+      <div class="googleSlot" id="googleLoginSlot"></div>
+      <div class="statusBox" id="authStatus">로그인 상태 확인 중…</div>
+    </section>
+
+    <section class="card centerCard hidden" id="deniedView">
+      <h2>접근 권한 없음</h2>
+      <p>Google 로그인은 완료됐지만 관리자 UID로 등록된 계정이 아닙니다.</p>
+      <div class="statusBox error" id="deniedUid"></div>
+    </section>
+
+    <main class="hidden" id="adminView">
+      <section class="card">
+        <h2 class="sectionTitle">이용 승인 관리</h2>
+        <p class="sectionSub">승인 신청을 실시간으로 확인하고 승인·거절·삭제할 수 있습니다.</p>
+        <div class="stats">
+          <div class="stat pending">대기<b id="pendingCount">0</b></div>
+          <div class="stat approved">승인<b id="approvedCount">0</b></div>
+          <div class="stat rejected">거절<b id="rejectedCount">0</b></div>
+        </div>
+        <div class="filters">
+          <button class="filterBtn active" data-filter="pending" type="button">대기</button>
+          <button class="filterBtn" data-filter="approved" type="button">승인</button>
+          <button class="filterBtn" data-filter="rejected" type="button">거절</button>
+          <button class="filterBtn" data-filter="all" type="button">전체</button>
+        </div>
+        <input class="search" id="searchInput" placeholder="이름·소속·UID 검색" type="search">
+        <div class="userList" id="userList"><div class="empty">불러오는 중…</div></div>
+      </section>
+
+      <section class="card">
+        <h2 class="sectionTitle">전체공지 팝업</h2>
+        <p class="sectionSub">활성화된 공지는 승인된 모든 이용자에게 한 번씩 팝업으로 표시됩니다. 내용을 수정해 저장하면 다시 표시됩니다.</p>
+        <label for="noticeTitle">공지 제목</label>
+        <input class="field" id="noticeTitle" maxlength="80" placeholder="예: 시스템 점검 안내">
+        <label for="noticeMessage">공지 내용</label>
+        <textarea class="field" id="noticeMessage" maxlength="1000" placeholder="공지 내용을 입력하세요."></textarea>
+        <label class="noticeOptions"><input id="noticeActive" type="checkbox" checked> 저장 즉시 이용자에게 팝업 표시</label>
+        <div class="noticeActions">
+          <button class="noticeBtn saveNotice" id="saveNoticeBtn" type="button">공지 저장</button>
+          <button class="noticeBtn stopNotice" id="stopNoticeBtn" type="button">공지 중지</button>
+          <button class="noticeBtn deleteNotice" id="deleteNoticeBtn" type="button">공지 삭제</button>
+        </div>
+        <div class="saveMessage" id="noticeSaveMessage"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithCredential, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+    import { getFirestore, collection, query, limit, getDocs, onSnapshot, doc, updateDoc, deleteDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDCzZK9zYugnBpBIcZZmfmFt5Mt4vlRQEE",
+      authDomain: "mini-poliphone.firebaseapp.com",
+      projectId: "mini-poliphone",
+      storageBucket: "mini-poliphone.firebasestorage.app",
+      messagingSenderId: "1044994708052",
+      appId: "1:1044994708052:web:6df7a5bdfd23bbf91153c1"
+    };
+    const GOOGLE_CLIENT_ID = "1044994708052-lgu9t4glgml0ih6c9cm4pp319d1fouim.apps.googleusercontent.com";
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    auth.useDeviceLanguage();
+
+    const authView = document.getElementById("authView");
+    const deniedView = document.getElementById("deniedView");
+    const adminView = document.getElementById("adminView");
+    const authStatus = document.getElementById("authStatus");
+    const deniedUid = document.getElementById("deniedUid");
+    const signOutBtn = document.getElementById("signOutBtn");
+    const loginSlot = document.getElementById("googleLoginSlot");
+    const userList = document.getElementById("userList");
+    const searchInput = document.getElementById("searchInput");
+    const noticeTitle = document.getElementById("noticeTitle");
+    const noticeMessage = document.getElementById("noticeMessage");
+    const noticeActive = document.getElementById("noticeActive");
+    const noticeSaveMessage = document.getElementById("noticeSaveMessage");
+    let currentAdmin = null;
+    let allUsers = [];
+    let activeFilter = "pending";
+    let stopUsers = null;
+    let stopNotice = null;
+    let currentNotice = null;
+    let authorizingUid = null;
+
+    function hasGoogleIdentity(user) {
+      return !!(user && user.providerData && user.providerData.some(p => p.providerId === "google.com"));
+    }
+
+    function showOnly(view) {
+      authView.classList.toggle("hidden", view !== "auth");
+      deniedView.classList.toggle("hidden", view !== "denied");
+      adminView.classList.toggle("hidden", view !== "admin");
+      signOutBtn.classList.toggle("hidden", view === "auth");
+    }
+
+    async function handleGoogleCredential(response) {
+      try {
+        if (!response || !response.credential) throw new Error("Google 인증정보가 없습니다.");
+        authStatus.className = "statusBox";
+        authStatus.textContent = "Google 계정을 확인하고 있습니다…";
+        await signInWithCredential(auth, GoogleAuthProvider.credential(response.credential));
+      } catch (error) {
+        authStatus.className = "statusBox error";
+        authStatus.textContent = "로그인 실패: " + (error.code || error.message || error);
+      }
+    }
+
+    function initializeGoogleButton() {
+      let attempts = 0;
+      const timer = setInterval(() => {
+        attempts += 1;
+        if (window.google && window.google.accounts && window.google.accounts.id) {
+          clearInterval(timer);
+          window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential, auto_select: false });
+          loginSlot.replaceChildren();
+          window.google.accounts.id.renderButton(loginSlot, {
+            type:"standard", theme:"outline", size:"large", text:"continue_with",
+            shape:"rectangular", logo_alignment:"left", width:Math.min(360, Math.max(240, loginSlot.clientWidth || 340))
+          });
+        } else if (attempts >= 100) {
+          clearInterval(timer);
+          authStatus.className = "statusBox error";
+          authStatus.textContent = "Google 로그인 모듈을 불러오지 못했습니다. 새로고침해주세요.";
+        }
+      }, 100);
+    }
+
+    function cleanupListeners() {
+      if (stopUsers) { stopUsers(); stopUsers = null; }
+      if (stopNotice) { stopNotice(); stopNotice = null; }
+    }
+
+    async function authorize(user) {
+      if (!user || !hasGoogleIdentity(user)) {
+        cleanupListeners();
+        currentAdmin = null;
+        authorizingUid = null;
+        showOnly("auth");
+        authStatus.className = "statusBox";
+        authStatus.textContent = "관리자 Google 계정으로 로그인해주세요.";
+        return;
+      }
+      if (authorizingUid === user.uid || (currentAdmin && currentAdmin.uid === user.uid)) return;
+      authorizingUid = user.uid;
+      showOnly("auth");
+      authStatus.textContent = "관리자 권한을 확인하고 있습니다…";
+      try {
+        await getDocs(query(collection(db, "access_requests"), limit(1)));
+        currentAdmin = user;
+        showOnly("admin");
+        startAdminListeners();
+      } catch (error) {
+        cleanupListeners();
+        currentAdmin = null;
+        showOnly("denied");
+        deniedUid.textContent = "현재 UID: " + user.uid;
+      } finally {
+        authorizingUid = null;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]);
+    }
+
+    function statusLabel(status) {
+      if (status === "approved") return "승인";
+      if (status === "rejected") return "거절";
+      return "대기";
+    }
+
+    function timeValue(item) {
+      return item.data.requestedAt && item.data.requestedAt.toMillis ? item.data.requestedAt.toMillis() : 0;
+    }
+
+    function renderUsers() {
+      const counts = { pending:0, approved:0, rejected:0 };
+      allUsers.forEach(item => { counts[item.data.status] = (counts[item.data.status] || 0) + 1; });
+      document.getElementById("pendingCount").textContent = counts.pending || 0;
+      document.getElementById("approvedCount").textContent = counts.approved || 0;
+      document.getElementById("rejectedCount").textContent = counts.rejected || 0;
+
+      const keyword = searchInput.value.trim().toLowerCase();
+      const filtered = allUsers.filter(item => {
+        const status = item.data.status || "pending";
+        if (activeFilter !== "all" && status !== activeFilter) return false;
+        const haystack = [item.id, item.data.name, item.data.department].join(" ").toLowerCase();
+        return !keyword || haystack.includes(keyword);
+      }).sort((a,b) => timeValue(b) - timeValue(a));
+
+      if (!filtered.length) {
+        userList.innerHTML = '<div class="empty">해당하는 이용자가 없습니다.</div>';
+        return;
+      }
+      userList.innerHTML = filtered.map(item => {
+        const data = item.data;
+        const status = data.status || "pending";
+        const googleClass = data.googleLinked === true ? "linked" : (data.googleLinked === false ? "unlinked" : "unknown");
+        const googleText = data.googleLinked === true
+          ? "Google 연동 · " + (data.googleEmail || "이메일 확인됨")
+          : (data.googleLinked === false ? "Google 미연동" : "Google 연동 여부 미확인");
+        return '<article class="userItem" data-uid="' + escapeHtml(item.id) + '">' +
+          '<div class="userHead"><div class="userInfo">' +
+          '<div class="userName">' + escapeHtml(data.name || "이름 없음") + '</div>' +
+          '<div class="userMeta">' + escapeHtml(data.department || "소속 없음") + '<br>' + escapeHtml(item.id) + '</div>' +
+          '<span class="googleState ' + googleClass + '">' + escapeHtml(googleText) + '</span>' +
+          '</div><span class="badge ' + status + '">' + statusLabel(status) + '</span></div>' +
+          '<div class="actions">' +
+          '<button class="actionBtn approveBtn" data-action="approved" type="button"' + (status === "approved" ? " disabled" : "") + '>승인</button>' +
+          '<button class="actionBtn rejectBtn" data-action="rejected" type="button"' + (status === "rejected" ? " disabled" : "") + '>거절</button>' +
+          '<button class="actionBtn deleteBtn" data-action="delete" type="button">삭제</button>' +
+          '</div></article>';
+      }).join("");
+    }
+
+    function startAdminListeners() {
+      cleanupListeners();
+      stopUsers = onSnapshot(collection(db, "access_requests"), snapshot => {
+        allUsers = [];
+        snapshot.forEach(entry => allUsers.push({ id:entry.id, data:entry.data() }));
+        renderUsers();
+      }, error => {
+        userList.innerHTML = '<div class="empty">목록 수신 실패: ' + escapeHtml(error.code || error.message) + '</div>';
+      });
+
+      stopNotice = onSnapshot(doc(db, "global_notices", "current"), snapshot => {
+        currentNotice = snapshot.exists() ? snapshot.data() : null;
+        noticeTitle.value = currentNotice ? currentNotice.title || "" : "";
+        noticeMessage.value = currentNotice ? currentNotice.message || "" : "";
+        noticeActive.checked = currentNotice ? currentNotice.active === true : true;
+      }, error => {
+        noticeSaveMessage.textContent = "공지 수신 실패: " + (error.code || error.message || error);
+      });
+    }
+
+    document.querySelectorAll(".filterBtn").forEach(button => button.addEventListener("click", () => {
+      activeFilter = button.dataset.filter;
+      document.querySelectorAll(".filterBtn").forEach(item => item.classList.toggle("active", item === button));
+      renderUsers();
+    }));
+    searchInput.addEventListener("input", renderUsers);
+
+    userList.addEventListener("click", async event => {
+      const button = event.target.closest(".actionBtn");
+      if (!button) return;
+      const item = button.closest(".userItem");
+      const uid = item && item.dataset.uid;
+      if (!uid) return;
+      const action = button.dataset.action;
+      if (action === "delete" && !confirm("이 이용자의 신청 기록을 삭제할까요?\n삭제 후에는 다시 승인 신청해야 합니다.")) return;
+      item.querySelectorAll("button").forEach(btn => btn.disabled = true);
+      try {
+        if (action === "delete") await deleteDoc(doc(db, "access_requests", uid));
+        else await updateDoc(doc(db, "access_requests", uid), { status:action });
+      } catch (error) {
+        alert("처리 실패: " + (error.code || error.message || error));
+        renderUsers();
+      }
+    });
+
+    async function writeNotice(active) {
+      if (!currentAdmin) return;
+      const title = noticeTitle.value.trim();
+      const message = noticeMessage.value.trim();
+      if (!title || !message) {
+        noticeSaveMessage.textContent = "제목과 내용을 모두 입력해주세요.";
+        return;
+      }
+      noticeSaveMessage.textContent = "저장 중…";
+      try {
+        await setDoc(doc(db, "global_notices", "current"), {
+          title, message, active, version:Date.now(), updatedAt:serverTimestamp(), updatedBy:currentAdmin.uid
+        });
+        noticeSaveMessage.textContent = active ? "✓ 전체공지가 저장·활성화되었습니다." : "✓ 공지가 중지되었습니다.";
+      } catch (error) {
+        noticeSaveMessage.textContent = "저장 실패: " + (error.code || error.message || error);
+      }
+    }
+
+    document.getElementById("saveNoticeBtn").addEventListener("click", () => writeNotice(noticeActive.checked));
+    document.getElementById("stopNoticeBtn").addEventListener("click", () => {
+      noticeActive.checked = false;
+      writeNotice(false);
+    });
+    document.getElementById("deleteNoticeBtn").addEventListener("click", async () => {
+      if (!currentNotice || !confirm("현재 전체공지를 완전히 삭제할까요?")) return;
+      try {
+        await deleteDoc(doc(db, "global_notices", "current"));
+        noticeSaveMessage.textContent = "✓ 공지가 삭제되었습니다.";
+      } catch (error) {
+        noticeSaveMessage.textContent = "삭제 실패: " + (error.code || error.message || error);
+      }
+    });
+
+    signOutBtn.addEventListener("click", async () => {
+      cleanupListeners();
+      if (window.google && window.google.accounts) window.google.accounts.id.disableAutoSelect();
+      await signOut(auth);
+      location.reload();
+    });
+
+    initializeGoogleButton();
+    onAuthStateChanged(auth, user => authorize(user).catch(error => {
+      authStatus.className = "statusBox error";
+      authStatus.textContent = "권한 확인 실패: " + (error.code || error.message || error);
+    }));
+  </script>
+</body>
+</html>
