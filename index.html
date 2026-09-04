@@ -155,7 +155,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
     import {
-      getAuth, GoogleAuthProvider, signInWithCredential, linkWithCredential
+      getAuth, GoogleAuthProvider, signInWithCredential, linkWithCredential, signOut
     } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
     import {
       getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
@@ -179,6 +179,8 @@
     let currentUser = null;
     let appLoading = false;
     let accessStarted = false;
+    let stopSessionListener = null;
+    let sessionEnding = false;
 
     function show(id) {
       screens.forEach(screenId => {
@@ -191,6 +193,48 @@
       document.getElementById("requestUid").textContent = text;
       document.getElementById("pendingUid").textContent = text;
       document.getElementById("rejectedUid").textContent = text;
+    }
+
+    async function endOlderSession(message) {
+      if (sessionEnding) return;
+      sessionEnding = true;
+      if (stopSessionListener) stopSessionListener();
+      try { await signOut(auth); } catch (_) {}
+      alert(message || "다른 기기에서 새로 로그인하여 현재 접속이 종료되었습니다.");
+      location.replace(location.href);
+    }
+
+    async function activateLatestSession(user) {
+      const tokenResult = await user.getIdTokenResult();
+      const authTime = Number(tokenResult.claims.auth_time);
+      if (!Number.isInteger(authTime) || authTime <= 0) {
+        throw new Error("로그인 시각을 확인하지 못했습니다.");
+      }
+
+      const sessionRef = doc(db, "active_sessions", user.uid);
+      try {
+        await setDoc(sessionRef, {
+          authTime,
+          updatedAt: serverTimestamp()
+        });
+      } catch (error) {
+        if (error && error.code === "permission-denied") {
+          await endOlderSession("이 계정은 더 최근에 로그인한 기기에서 사용 중입니다.");
+          return false;
+        }
+        throw error;
+      }
+
+      if (stopSessionListener) stopSessionListener();
+      stopSessionListener = onSnapshot(sessionRef, snapshot => {
+        if (!snapshot.exists() || Number(snapshot.data().authTime) !== authTime) {
+          endOlderSession();
+        }
+      }, error => {
+        console.error("중복 로그인 확인 실패:", error);
+        endOlderSession("로그인 세션을 확인할 수 없어 안전하게 로그아웃합니다.");
+      });
+      return true;
     }
 
     function base64ToBytes(value) {
@@ -327,6 +371,7 @@
         const result = auth.currentUser && auth.currentUser.isAnonymous
           ? await linkWithCredential(auth.currentUser, credential)
           : await signInWithCredential(auth, credential);
+        if (!await activateLatestSession(result.user)) return;
         startAccessCheck(result.user);
       } catch (error) {
         console.error("Google 로그인 실패:", error);
@@ -378,6 +423,7 @@
 
       // Google 계정 사용자는 자신의 UID 승인 상태를 바로 확인합니다.
       if (!user.isAnonymous) {
+        if (!await activateLatestSession(user)) return;
         startAccessCheck(user);
         return;
       }
@@ -387,6 +433,7 @@
       const requestSnap = await getDoc(doc(db, "access_requests", user.uid));
       const status = requestSnap.exists() ? requestSnap.data().status : null;
       if (status === "approved") {
+        if (!await activateLatestSession(user)) return;
         startAccessCheck(user);
       } else {
         document.getElementById("googleLoginMessage").textContent =
