@@ -2,164 +2,39 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="robots" content="noindex, nofollow">
-  <title>미니 폴리폰</title>
-  <script src="https://accounts.google.com/gsi/client?hl=ko" async defer></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>미니폴리폰 보호 본문 업로더</title>
   <style>
     * { box-sizing: border-box; }
-    html, body { min-height: 100%; }
-    body {
-      margin: 0;
-      padding: 24px 16px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: #f1f5f9;
-      color: #0f172a;
-      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-    }
-    .card {
-      width: min(100%, 420px);
-      padding: 30px 26px;
-      background: #fff;
-      border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, .09);
-      text-align: center;
-    }
-    h1 { margin: 0 0 10px; font-size: 22px; }
-    p { margin: 0 0 22px; color: #64748b; font-size: 14px; line-height: 1.65; }
-    label { display: block; margin: 14px 0 6px; text-align: left; font-size: 13px; font-weight: 800; }
-    input, select, button {
-      width: 100%;
-      min-height: 48px;
-      border-radius: 11px;
-      font: inherit;
-    }
-    input, select { padding: 0 13px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 16px; }
-    button { margin-top: 18px; padding: 12px 14px; border: 0; background: #1e3a5f; color: #fff; font-weight: 800; cursor: pointer; }
-    button:disabled { opacity: .55; cursor: wait; }
-    .google-button-slot { width: 100%; min-height: 44px; margin-top: 18px; display: flex; justify-content: center; }
-    .status { margin: 18px 0 0; padding: 13px; border-radius: 11px; background: #f8fafc; color: #475569; font-size: 13px; overflow-wrap: anywhere; }
-    .pending { background: #fff8e6; color: #806400; }
-    .rejected, .error { background: #fff0ee; color: #b42318; }
-    .loading { background: #eaf1fa; color: #1e3a5f; }
-    .hidden { display: none !important; }
+    body { margin: 0; padding: 32px 18px; background: #f4f6f8; color: #172033; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+    .card { max-width: 620px; margin: 0 auto; padding: 28px; background: white; border-radius: 18px; box-shadow: 0 8px 28px rgba(0,0,0,.08); }
+    h1 { margin: 0 0 10px; font-size: 24px; }
+    p { color: #586474; line-height: 1.65; }
+    input { width: 100%; margin: 16px 0; padding: 14px; border: 1px solid #cfd6df; border-radius: 10px; }
+    button { width: 100%; padding: 14px; border: 0; border-radius: 10px; background: #1e3a5f; color: white; font-size: 16px; font-weight: 800; cursor: pointer; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .info { margin-top: 18px; padding: 14px; background: #f2f5f8; border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .ok { color: #147a45; }
+    .error { color: #b42318; }
   </style>
 </head>
 <body>
   <main class="card">
-    <section id="kakaoScreen" class="hidden">
-      <h1>🚫 카카오톡 인앱 브라우저</h1>
-      <p>카카오톡 안에서는 일부 기능이 정상적으로 작동하지 않아 이용이 제한됩니다.<br><br>오른쪽 위 메뉴를 눌러 <b>다른 브라우저로 열기</b>를 선택하거나, 아래 주소를 복사해 Safari 또는 Chrome에서 직접 열어주세요.</p>
-      <div id="kakaoUrl" class="status rejected"></div>
-      <button id="kakaoCopyButton" type="button">주소 복사하기</button>
-    </section>
-
-    <section id="loadingScreen">
-      <h1>🔒 미니 폴리폰</h1>
-      <p>이용 권한을 안전하게 확인하고 있습니다.</p>
-      <div id="loadingMessage" class="status loading">Firebase 연결 중…</div>
-    </section>
-
-    <section id="loginScreen" class="hidden">
-      <h1>🔐 Google 계정 로그인</h1>
-      <p>처음 이용하는 사용자는 Google 계정으로 로그인한 뒤 이용 승인을 신청할 수 있습니다.</p>
-      <div id="googleLoginButton" class="google-button-slot" aria-label="Google 계정으로 로그인"></div>
-      <div id="googleLoginMessage" class="status">승인된 기존 이용자는 자동으로 접속됩니다.</div>
-    </section>
-
-    <section id="requestScreen" class="hidden">
-      <h1>🔒 이용 승인 신청</h1>
-      <p>본 시스템을 이용하려면 관리자 승인이 필요합니다.</p>
-
-      <label for="department">소속 시도청</label>
-      <select id="department">
-        <option value="">소속 경찰청 선택</option>
-        <option>서울경찰청</option><option>부산경찰청</option><option>대구경찰청</option>
-        <option>인천경찰청</option><option>광주경찰청</option><option>대전경찰청</option>
-        <option>울산경찰청</option><option>세종경찰청</option><option>경기남부경찰청</option>
-        <option>경기북부경찰청</option><option>강원경찰청</option><option>충북경찰청</option>
-        <option>충남경찰청</option><option>전북경찰청</option><option>전남경찰청</option>
-        <option>경북경찰청</option><option>경남경찰청</option><option>제주경찰청</option>
-      </select>
-
-      <label for="name">이름</label>
-      <input id="name" type="text" maxlength="40" placeholder="예: 홍길동" autocomplete="name">
-      <button id="requestButton" type="button">승인 요청 보내기</button>
-      <div id="requestUid" class="status"></div>
-    </section>
-
-    <section id="pendingScreen" class="hidden">
-      <h1>⏳ 승인 검토 중</h1>
-      <p>관리자가 승인하면 이 화면에서 자동으로 미니 폴리폰이 열립니다.</p>
-      <div id="pendingUid" class="status pending"></div>
-    </section>
-
-    <section id="rejectedScreen" class="hidden">
-      <h1>❌ 이용 승인 거절</h1>
-      <p>관리자에게 문의해 주세요.</p>
-      <div id="rejectedUid" class="status rejected"></div>
-    </section>
-
-    <section id="errorScreen" class="hidden">
-      <h1>연결 오류</h1>
-      <p>보호 자료를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</p>
-      <div id="errorMessage" class="status error"></div>
-    </section>
+    <h1>보호 본문 업로드</h1>
+    <p>수정된 보호 본문 <b>mini-poliphone-google-link.html</b>을 선택하면 Firebase에 안전한 크기로 나누어 저장합니다.</p>
+    <div id="authInfo" class="info">Firebase 로그인 확인 중…</div>
+    <input id="fileInput" type="file" accept=".html,text/html" disabled>
+    <button id="uploadBtn" type="button" disabled>Firebase에 본문 올리기</button>
+    <div id="status" class="info">파일을 선택해주세요.</div>
   </main>
-
-  <script>
-    (function () {
-      try {
-        var ua = navigator.userAgent || "";
-        var isKakaoUA = /KAKAOTALK/i.test(ua);
-        var isIOS = /iPhone|iPad|iPod/i.test(ua);
-        var hasSafariToken = /Safari\//.test(ua);
-        var isStandalone = !!(window.navigator && window.navigator.standalone);
-        var isIOSInAppFallback = isIOS && !hasSafariToken && !isStandalone;
-        var isKakao = isKakaoUA || isIOSInAppFallback;
-
-        if (!isKakao) return;
-        window.__MP_KAKAO_BLOCKED__ = true;
-
-        ["loadingScreen", "loginScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"].forEach(function (id) {
-          var element = document.getElementById(id);
-          if (element) element.classList.add("hidden");
-        });
-
-        var kakaoScreen = document.getElementById("kakaoScreen");
-        var kakaoUrl = document.getElementById("kakaoUrl");
-        var copyButton = document.getElementById("kakaoCopyButton");
-        if (kakaoScreen) kakaoScreen.classList.remove("hidden");
-        if (kakaoUrl) kakaoUrl.textContent = location.href;
-
-        if (copyButton) {
-          copyButton.addEventListener("click", async function () {
-            try {
-              await navigator.clipboard.writeText(location.href);
-              var original = copyButton.textContent;
-              copyButton.textContent = "복사됨!";
-              setTimeout(function () { copyButton.textContent = original; }, 1500);
-            } catch (error) {
-              alert("복사에 실패했습니다. 주소를 길게 눌러 직접 복사해주세요.");
-            }
-          });
-        }
-      } catch (error) {
-        console.error("인앱 브라우저 감지 실패:", error);
-      }
-    })();
-  </script>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-    import {
-      getAuth, GoogleAuthProvider, signInWithCredential, linkWithCredential
-    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-    import {
-      getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+    const ALLOWED_UPLOADER_UID = "7MIr0cptGhOVF6qAWT0t0CC6Qi93";
+    const CHUNK_SIZE = 450000;
 
     const firebaseConfig = {
       apiKey: "AIzaSyDCzZK9zYugnBpBIcZZmfmFt5Mt4vlRQEE",
@@ -169,246 +44,111 @@
       messagingSenderId: "1044994708052",
       appId: "1:1044994708052:web:6df7a5bdfd23bbf91153c1"
     };
-    const GOOGLE_CLIENT_ID = "1044994708052-lgu9t4glgml0ih6c9cm4pp319d1fouim.apps.googleusercontent.com";
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    auth.useDeviceLanguage();
     const db = getFirestore(app);
-    const screens = ["loadingScreen", "loginScreen", "requestScreen", "pendingScreen", "rejectedScreen", "errorScreen"];
-    let currentUser = null;
-    let appLoading = false;
-    let accessStarted = false;
+    const authInfo = document.getElementById("authInfo");
+    const fileInput = document.getElementById("fileInput");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const status = document.getElementById("status");
+    let ready = false;
 
-    function show(id) {
-      screens.forEach(screenId => {
-        document.getElementById(screenId).classList.toggle("hidden", screenId !== id);
-      });
+    function bytesToBase64(bytes) {
+      let binary = "";
+      const step = 32768;
+      for (let i = 0; i < bytes.length; i += step) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + step));
+      }
+      return btoa(binary);
     }
 
-    function setUid(uid) {
-      const text = "내 식별 ID: " + uid;
-      document.getElementById("requestUid").textContent = text;
-      document.getElementById("pendingUid").textContent = text;
-      document.getElementById("rejectedUid").textContent = text;
+    function updateButton() {
+      uploadBtn.disabled = !(ready && fileInput.files && fileInput.files[0]);
     }
 
-    function base64ToBytes(value) {
-      const binary = atob(value);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return bytes;
+    try {
+      await auth.authStateReady();
+      const user = auth.currentUser || (await signInAnonymously(auth)).user;
+      authInfo.textContent = "현재 UID: " + user.uid;
+
+      if (user.uid !== ALLOWED_UPLOADER_UID) {
+        authInfo.className = "info error";
+        authInfo.textContent += "\n\n업로드 권한 UID와 일치하지 않습니다. 이 브라우저에서는 업로드하지 마세요.";
+      } else {
+        ready = true;
+        fileInput.disabled = false;
+        authInfo.className = "info ok";
+        authInfo.textContent += "\n\n업로드 권한 확인 완료";
+      }
+    } catch (error) {
+      authInfo.className = "info error";
+      authInfo.textContent = "Firebase 로그인 실패: " + (error.code || error.message || error);
     }
 
-    async function loadProtectedApp() {
-      if (appLoading) return;
-      appLoading = true;
-      show("loadingScreen");
-      const message = document.getElementById("loadingMessage");
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files && fileInput.files[0];
+      status.className = "info";
+      status.textContent = file
+        ? `선택된 파일: ${file.name}\n크기: ${file.size.toLocaleString()} bytes`
+        : "파일을 선택해주세요.";
+      updateButton();
+    });
+
+    uploadBtn.addEventListener("click", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!ready || !file) return;
+
+      const confirmed = confirm(
+        "선택한 HTML 파일을 Firebase 보호 영역에 올릴까요?\n\n" +
+        file.name + "\n" + file.size.toLocaleString() + " bytes"
+      );
+      if (!confirmed) return;
+
+      uploadBtn.disabled = true;
+      fileInput.disabled = true;
 
       try {
-        message.textContent = "승인 확인 완료 · 보호 본문 불러오는 중…";
-        const manifestSnap = await getDoc(doc(db, "protected_content", "app_manifest"));
-        if (!manifestSnap.exists()) throw new Error("보호 본문 목록이 없습니다.");
+        const allBytes = new Uint8Array(await file.arrayBuffer());
+        const chunkCount = Math.ceil(allBytes.length / CHUNK_SIZE);
 
-        const manifest = manifestSnap.data();
-        const count = Number(manifest.chunkCount);
-        const totalBytes = Number(manifest.totalBytes);
-        if (!Number.isInteger(count) || count < 1 || count > 100) {
-          throw new Error("보호 본문 조각 정보가 올바르지 않습니다.");
+        for (let i = 0; i < chunkCount; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, allBytes.length);
+          const chunk = allBytes.subarray(start, end);
+          status.textContent = `업로드 중… ${i + 1} / ${chunkCount}`;
+
+          await setDoc(
+            doc(db, "protected_content", "app_" + String(i).padStart(4, "0")),
+            {
+              index: i,
+              byteLength: chunk.length,
+              data: bytesToBase64(chunk),
+              updatedAt: serverTimestamp()
+            }
+          );
         }
 
-        const chunkSnaps = await Promise.all(
-          Array.from({ length: count }, (_, index) =>
-            getDoc(doc(db, "protected_content", "app_" + String(index).padStart(4, "0")))
-          )
-        );
-
-        const chunks = chunkSnaps.map((snap, index) => {
-          if (!snap.exists()) throw new Error(`${index + 1}번 본문 조각이 없습니다.`);
-          return base64ToBytes(snap.data().data);
+        await setDoc(doc(db, "protected_content", "app_manifest"), {
+          chunkCount,
+          totalBytes: allBytes.length,
+          chunkSize: CHUNK_SIZE,
+          format: "base64-bytes-v1",
+          sourceName: file.name,
+          uploadedAt: serverTimestamp()
         });
 
-        const combined = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0));
-        let offset = 0;
-        chunks.forEach(chunk => {
-          combined.set(chunk, offset);
-          offset += chunk.length;
-        });
-
-        if (combined.length !== totalBytes) throw new Error("보호 본문 크기가 일치하지 않습니다.");
-        const html = new TextDecoder("utf-8", { fatal: true }).decode(combined);
-
-        document.open("text/html", "replace");
-        document.write(html);
-        document.close();
+        status.className = "info ok";
+        status.textContent =
+          `업로드 완료\n${chunkCount}개 조각\n총 ${allBytes.length.toLocaleString()} bytes`;
       } catch (error) {
         console.error(error);
-        appLoading = false;
-        document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
-        show("errorScreen");
+        status.className = "info error";
+        status.textContent = "업로드 실패\n" + (error.code || error.message || error);
+        fileInput.disabled = false;
+        updateButton();
       }
-    }
-
-    function startAccessCheck(user) {
-      if (!user || accessStarted) return;
-      accessStarted = true;
-      currentUser = user;
-      try {
-        setUid(currentUser.uid);
-
-        try {
-          const savedName = localStorage.getItem("mp_userName");
-          const savedOrg = localStorage.getItem("mp_userOrg");
-          if (savedName) document.getElementById("name").value = savedName;
-          if (savedOrg) document.getElementById("department").value = savedOrg;
-        } catch (_) {}
-
-        const requestRef = doc(db, "access_requests", currentUser.uid);
-        onSnapshot(requestRef, snapshot => {
-          if (!snapshot.exists()) {
-            appLoading = false;
-            show("requestScreen");
-            return;
-          }
-
-          const status = snapshot.data().status;
-          if (status === "approved") loadProtectedApp();
-          else if (status === "rejected") show("rejectedScreen");
-          else show("pendingScreen");
-        }, error => {
-          document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
-          show("errorScreen");
-        });
-
-        document.getElementById("requestButton").addEventListener("click", async () => {
-          const name = document.getElementById("name").value.trim();
-          const department = document.getElementById("department").value;
-          if (!name || !department) {
-            alert("이름과 소속 시도청을 모두 입력해주세요.");
-            return;
-          }
-
-          const button = document.getElementById("requestButton");
-          button.disabled = true;
-          try {
-            await setDoc(requestRef, {
-              userId: currentUser.uid,
-              name,
-              department,
-              status: "pending",
-              googleLinked: true,
-              googleEmail: currentUser.email || "",
-              requestedAt: serverTimestamp()
-            });
-            try {
-              localStorage.setItem("mp_userName", name);
-              localStorage.setItem("mp_userOrg", department);
-            } catch (_) {}
-            show("pendingScreen");
-          } catch (error) {
-            console.error(error);
-            alert("승인 요청을 보내지 못했습니다: " + (error.code || error.message || error));
-            button.disabled = false;
-          }
-        });
-      } catch (error) {
-        document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
-        show("errorScreen");
-      }
-    }
-
-    async function handleGoogleCredential(response) {
-      const message = document.getElementById("googleLoginMessage");
-      try {
-        if (!response || !response.credential) throw new Error("Google 인증정보를 받지 못했습니다.");
-        message.textContent = "Google 계정을 확인하고 있습니다…";
-        const credential = GoogleAuthProvider.credential(response.credential);
-        const result = auth.currentUser && auth.currentUser.isAnonymous
-          ? await linkWithCredential(auth.currentUser, credential)
-          : await signInWithCredential(auth, credential);
-        startAccessCheck(result.user);
-      } catch (error) {
-        console.error("Google 로그인 실패:", error);
-        if (error.code === "auth/credential-already-in-use" || error.code === "auth/account-exists-with-different-credential") {
-          message.textContent = "이 Google 계정은 이미 다른 식별 ID에 연결되어 있습니다. 관리자에게 문의해주세요.";
-        } else {
-          message.textContent = "Google 로그인에 실패했습니다: " + (error.code || error.message || error);
-        }
-      }
-    }
-
-    function renderGoogleLoginButton() {
-      const slot = document.getElementById("googleLoginButton");
-      let tries = 0;
-      const timer = setInterval(() => {
-        tries += 1;
-        if (window.google && window.google.accounts && window.google.accounts.id) {
-          clearInterval(timer);
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleCredential,
-            auto_select: false,
-            cancel_on_tap_outside: true
-          });
-          slot.replaceChildren();
-          window.google.accounts.id.renderButton(slot, {
-            type: "standard",
-            theme: "outline",
-            size: "large",
-            text: "continue_with",
-            shape: "rectangular",
-            logo_alignment: "left",
-            width: Math.min(360, Math.max(240, slot.clientWidth || 360))
-          });
-        } else if (tries >= 100) {
-          clearInterval(timer);
-          document.getElementById("googleLoginMessage").textContent =
-            "Google 로그인 모듈을 불러오지 못했습니다. 네트워크 연결 후 새로고침해주세요.";
-        }
-      }, 100);
-    }
-
-    async function routeUser(user) {
-      if (!user) {
-        document.getElementById("googleLoginMessage").textContent = "Google 로그인 후 이용 승인을 신청할 수 있습니다.";
-        show("loginScreen");
-        return;
-      }
-
-      // Google 계정 사용자는 자신의 UID 승인 상태를 바로 확인합니다.
-      if (!user.isAnonymous) {
-        startAccessCheck(user);
-        return;
-      }
-
-      // 익명 사용자는 현재 UID가 이미 승인된 경우에만 자동 접속합니다.
-      // 미승인·대기·거절·신청 이력 없음 상태라면 Google 연결이 먼저입니다.
-      const requestSnap = await getDoc(doc(db, "access_requests", user.uid));
-      const status = requestSnap.exists() ? requestSnap.data().status : null;
-      if (status === "approved") {
-        startAccessCheck(user);
-      } else {
-        document.getElementById("googleLoginMessage").textContent =
-          "Google 계정을 연결한 뒤 현재 승인 상태를 확인하거나 새 승인을 신청합니다.";
-        show("loginScreen");
-      }
-    }
-
-    async function start() {
-      try {
-        await auth.authStateReady();
-        await routeUser(auth.currentUser);
-      } catch (error) {
-        document.getElementById("errorMessage").textContent = error.code || error.message || String(error);
-        show("errorScreen");
-      }
-    }
-
-    if (!window.__MP_KAKAO_BLOCKED__) {
-      renderGoogleLoginButton();
-      start();
-    }
+    });
   </script>
 </body>
 </html>
